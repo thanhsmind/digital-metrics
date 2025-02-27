@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+pydantic
+facebook_business
+requests
+datetime
+typing
+sqlalchemy
+schedule

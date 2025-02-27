@@ -1,0 +1,34 @@
+{
+  "app_id": "1134157884360846",
+  "app_secret": "8c9004e70c7a23b13901627e33066448",
+  "api_version": "v20.0",
+  "business_id": "1602411516748597",
+  "ad_account_id": "act_142220018771186",
+  "access_token": "EAAQHgrXRCI4BOZBAZBQbbd8YVhqrRQoPC3PKffcT5oiE1XivkIO48Qe4tZCTUGPpJuy34YGbQqZCgwyuGVlafQDJSElscZBj7zqkmzLfS9Y8XCZCHe5AbttJGcsHdrC7gwChjbbXL1yNwpYIek8fDKL0WaqotqQgl9CXgL37BE16OZCIMriCAZAomnhrvbTijNkT3ZAjL1CjU",
+  "page_tokens": {
+    "106718909002929": {
+      "page_id": "106718909002929",
+      "page_name": "Tuy\u1ec3n \u0110\u00e2u Tr\u00fang \u0110\u00f3",
+      "access_token": "EAAQHgrXRCI4BO7s1QFRZA2RPYV9Qi68Ra48LJ5PIMiPBy9qcZCVY2WsiU5VIJYj5TWGYVSyvZC0Ys9kwVNyG52kWCV3ZBHL807ZCaljPdjp3Cm1bUR5aFPZA7mSRH4VzpQOJo6vIgHlonCdZBfxV4gd0hIlFSoKEeGXrb4nGhrzDxHMaWeFxVPQtgUpNXkQDT91EoCaVUHR2ENYXy0ZD",
+      "last_updated": "2024-07-04T11:24:49.078900"
+    },
+    "106539302179964": {
+      "page_id": "106539302179964",
+      "page_name": "Ch\u01b0\u01a1ng tr\u00ecnh Ch\u1ee9ng Nh\u1eadn Xu\u1ea5t S\u1eafc - Vietnam Excellence",
+      "access_token": "EAAQHgrXRCI4BO0WJa4T1RW7SI3oSyjUKVEYaemEMk4kUOcQRr2rpaxxMJg0pL0fZAspMTelzTxKBZA9ka2qtd4ZAaCkhtq6pbiYjfk5cSJuVE4uml43jIMEXq0cMQqCLVt8ltfxQKVLiyUAH33Q64TXZC2O74sa2DmXyvmXwuO8yEZCgBJ26LBtPzpFdRUg89dzvuLSgQ2ETvU6MZD",
+      "last_updated": "2024-07-04T11:24:49.078938"
+    },
+    "100680509328068": {
+      "page_id": "100680509328068",
+      "page_name": "N\u01a1i L\u00e0m Vi\u1ec7c T\u1ed1t Nh\u1ea5t Vi\u1ec7t Nam - Vietnam Best Places To Work",
+      "access_token": "EAAQHgrXRCI4BOzWBOsShSvRPNBVRTpObvZCwBF2sHyURvr7dxZB5LrRa5r8Xrvh5N6BWZCPRRzafJ6S1MvsoRjQgNzRo0XA8ln8QZAZASizZBxzgiD01pRms745r9tGZA6CWA0ywrXwn7evN1cuwcf3hcGvDO7YnPZC6nQOjV32twbYZBDRw5w7qDB2vZCZBKAACZABtmIqPIZBkglxo9UUAZD",
+      "last_updated": "2024-07-04T11:24:49.078946"
+    },
+    "196959856995780": {
+      "page_id": "196959856995780",
+      "page_name": "Anphabe",
+      "access_token": "EAAQHgrXRCI4BO3GVuwiZBBBsAmmBg5MxPAyDXUsHiNU0085H1ZBzRQ7iBoTwklhOOlUrnBA4TFVsWPRHuog4TmKEUvcKbCkaZCmFmWCje3JhAmY6dGmCp9M7ybOfM38zw48NhfoQENZBgC9Gk8ZAjoJhj1aeZCV4najuwS312MhNWYk4uCqcqPxqXjn5pE9cGZBTXHqagplREM6EWYZD",
+      "last_updated": "2024-07-04T11:24:49.078955"
+    }
+  }
+}
