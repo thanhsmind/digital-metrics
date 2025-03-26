@@ -1,0 +1,6 @@
+developer_token: example-developer-token
+client_id: example-client-id
+client_secret: example-client-secret
+refresh_token: example-refresh-token
+login_customer_id: "1234567890"
+use_proto_plus: true

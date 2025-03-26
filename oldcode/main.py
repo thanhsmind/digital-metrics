@@ -1,9 +1,10 @@
 import csv
 import json
 import logging
+import os
 from datetime import datetime, timedelta
 from io import StringIO
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 
 import requests
 import uvicorn
@@ -18,8 +19,11 @@ from facebook_business.exceptions import FacebookRequestError
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from google.ads.googleads.client import GoogleAdsClient
+from google.ads.googleads.errors import GoogleAdsException
 
 CONFIG_FILE = 'config.json'
+GOOGLE_ADS_CONFIG_FILE = 'google-ads.yaml'
 
 
 def load_config(file_path=CONFIG_FILE):
@@ -194,6 +198,101 @@ ADS_DIMENSIONS = {
     'conversion_destination': 'conversion_destination'
 }
 
+# Google Ads
+GOOGLE_ADS_METRICS = {
+    'impressions': 'metrics.impressions',
+    'clicks': 'metrics.clicks',
+    'cost_micros': 'metrics.cost_micros',
+    'ctr': 'metrics.ctr',
+    'average_cpc': 'metrics.average_cpc',
+    'conversions': 'metrics.conversions',
+    'cost_per_conversion': 'metrics.cost_per_conversion',
+    'conversion_rate': 'metrics.conversion_rate',
+    'all_conversions': 'metrics.all_conversions',
+    'all_conversion_value': 'metrics.all_conversion_value',
+    'video_views': 'metrics.video_views',
+    'average_cpm': 'metrics.average_cpm',
+    'interactions': 'metrics.interactions',
+    'interaction_rate': 'metrics.interaction_rate',
+    'interaction_event_types': 'metrics.interaction_event_types',
+    'absolute_top_impression_percentage': 'metrics.absolute_top_impression_percentage',
+    'top_impression_percentage': 'metrics.top_impression_percentage',
+    'search_impression_share': 'metrics.search_impression_share',
+    'search_rank_lost_impression_share': 'metrics.search_rank_lost_impression_share',
+    'search_budget_lost_impression_share': 'metrics.search_budget_lost_impression_share',
+    'display_impression_share': 'metrics.display_impression_share',
+    'display_rank_lost_impression_share': 'metrics.display_rank_lost_impression_share',
+    'display_budget_lost_impression_share': 'metrics.display_budget_lost_impression_share',
+    'content_budget_lost_impression_share': 'metrics.content_budget_lost_impression_share',
+    'content_impression_share': 'metrics.content_impression_share',
+    'content_rank_lost_impression_share': 'metrics.content_rank_lost_impression_share',
+    'gmail_forwards': 'metrics.gmail_forwards',
+    'gmail_saves': 'metrics.gmail_saves',
+    'gmail_secondary_clicks': 'metrics.gmail_secondary_clicks',
+    'active_view_impressions': 'metrics.active_view_impressions',
+    'active_view_measurability': 'metrics.active_view_measurability',
+    'active_view_measurable_cost_micros': 'metrics.active_view_measurable_cost_micros',
+    'active_view_measurable_impressions': 'metrics.active_view_measurable_impressions',
+    'active_view_viewability': 'metrics.active_view_viewability',
+    'conversions_value': 'metrics.conversions_value',
+    'conversions_value_per_cost': 'metrics.conversions_value_per_cost',
+    'view_through_conversions': 'metrics.view_through_conversions',
+    'value_per_conversion': 'metrics.value_per_conversion',
+    'value_per_all_conversions': 'metrics.value_per_all_conversions'
+}
+
+GOOGLE_ADS_DIMENSIONS = {
+    'date': 'segments.date',
+    'device': 'segments.device',
+    'day_of_week': 'segments.day_of_week',
+    'ad_network_type': 'segments.ad_network_type',
+    'click_type': 'segments.click_type',
+    'conversion_action': 'segments.conversion_action',
+    'conversion_action_category': 'segments.conversion_action_category',
+    'conversion_action_name': 'segments.conversion_action_name',
+    'conversion_adjustment': 'segments.conversion_adjustment',
+    'conversion_attribution_event_type': 'segments.conversion_attribution_event_type',
+    'conversion_lag_bucket': 'segments.conversion_lag_bucket',
+    'external_conversion_source': 'segments.external_conversion_source',
+    'hour': 'segments.hour',
+    'month': 'segments.month',
+    'quarter': 'segments.quarter',
+    'search_engine_results_page_type': 'segments.search_engine_results_page_type',
+    'search_term_match_type': 'segments.search_term_match_type',
+    'slot': 'segments.slot',
+    'week': 'segments.week',
+    'year': 'segments.year',
+    'campaign_id': 'campaign.id',
+    'campaign_name': 'campaign.name',
+    'campaign_status': 'campaign.status',
+    'ad_group_id': 'ad_group.id',
+    'ad_group_name': 'ad_group.name',
+    'ad_group_status': 'ad_group.status',
+    'ad_id': 'ad_group_ad.ad.id',
+    'ad_status': 'ad_group_ad.status',
+    'keyword_id': 'ad_group_criterion.criterion_id',
+    'keyword_text': 'ad_group_criterion.keyword.text',
+    'keyword_match_type': 'ad_group_criterion.keyword.match_type',
+    'keyword_status': 'ad_group_criterion.status',
+    'search_term': 'segments.keyword.text',
+    'customer_id': 'customer.id'
+}
+
+DEFAULT_GOOGLE_ADS_METRICS = [
+    'impressions',
+    'clicks',
+    'cost_micros',
+    'ctr',
+    'average_cpc',
+    'conversions',
+    'conversions_value'
+]
+
+DEFAULT_GOOGLE_ADS_DIMENSIONS = [
+    'date', 
+    'campaign_name', 
+    'ad_group_name'
+]
 
 class PageToken(BaseModel):
     page_id: str
@@ -761,6 +860,138 @@ api_manager = FacebookApiManager(
     api_version=config['api_version']
 )
 
+class GoogleAdsManager:
+    def __init__(self, config_path=GOOGLE_ADS_CONFIG_FILE):
+        self.config_path = config_path
+        self.client = None
+        self.init_client()
+    
+    def init_client(self):
+        """Initialize Google Ads Client from yaml config file"""
+        try:
+            if not os.path.exists(self.config_path):
+                custom_logger(f"Google Ads config file not found at {self.config_path}", logging.ERROR)
+                return False
+            
+            self.client = GoogleAdsClient.load_from_storage(self.config_path)
+            return True
+        except Exception as e:
+            custom_logger(f"Failed to initialize Google Ads client: {str(e)}", logging.ERROR)
+            return False
+    
+    def get_campaigns(self, client_id: str, metrics: List[str], dimensions: List[str], date_range: Optional[str] = 'LAST_30_DAYS'):
+        """
+        Get campaign data from Google Ads
+        
+        Args:
+            client_id: Google Ads customer ID without dashes (e.g., "1234567890")
+            metrics: List of metrics to retrieve
+            dimensions: List of dimensions to group by
+            date_range: Predefined date range or custom range
+            
+        Returns:
+            List of campaign data
+        """
+        try:
+            if not self.client:
+                if not self.init_client():
+                    raise Exception("Could not initialize Google Ads client")
+            
+            # Prepare the query parts
+            metrics_str = ', '.join([GOOGLE_ADS_METRICS[m] for m in metrics if m in GOOGLE_ADS_METRICS])
+            dimensions_str = ', '.join([GOOGLE_ADS_DIMENSIONS[d] for d in dimensions if d in GOOGLE_ADS_DIMENSIONS])
+            
+            # Create the query
+            query = f"""
+                SELECT
+                    {dimensions_str},
+                    {metrics_str}
+                FROM campaign
+                WHERE campaign.status != 'REMOVED'
+            """
+            
+            # Add date range if provided
+            if date_range:
+                query += f" AND segments.date DURING {date_range}"
+            
+            # Create a service client
+            ga_service = self.client.get_service("GoogleAdsService")
+            
+            # Issue a search request
+            search_request = self.client.get_type("SearchGoogleAdsRequest")
+            search_request.customer_id = client_id
+            search_request.query = query
+            
+            # Get the results
+            response = ga_service.search(request=search_request)
+            
+            # Process the results
+            results = []
+            for row in response:
+                result = {}
+                
+                # Extract dimensions
+                for dimension in dimensions:
+                    if dimension in GOOGLE_ADS_DIMENSIONS:
+                        field_path = GOOGLE_ADS_DIMENSIONS[dimension].split('.')
+                        value = row
+                        for path in field_path:
+                            try:
+                                value = getattr(value, path)
+                            except (AttributeError, IndexError):
+                                value = None
+                                break
+                        result[dimension] = value
+                
+                # Extract metrics
+                for metric in metrics:
+                    if metric in GOOGLE_ADS_METRICS:
+                        field_path = GOOGLE_ADS_METRICS[metric].split('.')
+                        value = row
+                        for path in field_path:
+                            try:
+                                value = getattr(value, path)
+                            except (AttributeError, IndexError):
+                                value = None
+                                break
+                        result[metric] = value
+                
+                results.append(result)
+            
+            return results
+        
+        except GoogleAdsException as e:
+            error_message = f"GoogleAdsException: {e.error.message}"
+            error_code = e.error.code().name
+            custom_logger(f"{error_message}. Code: {error_code}", logging.ERROR)
+            raise Exception(f"Failed to get Google Ads campaigns: {error_message}")
+        
+        except Exception as e:
+            custom_logger(f"Unexpected error when getting Google Ads campaigns: {str(e)}", logging.ERROR)
+            raise
+
+def google_ads_insights_to_csv(insights, fields):
+    """Convert Google Ads insights to CSV format"""
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=fields)
+    writer.writeheader()
+    
+    for insight in insights:
+        row = {}
+        for field in fields:
+            value = insight.get(field)
+            
+            # Convert from micros (millionths) to regular currency for cost values
+            if field == 'cost_micros' and value is not None:
+                value = float(value) / 1000000
+            
+            row[field] = value
+        writer.writerow(row)
+    
+    return output
+
+google_ads_manager = GoogleAdsManager()
+
 app = FastAPI()
 
 @app.get("/refresh_page_tokens")
@@ -1194,6 +1425,93 @@ async def get_ads_insights_csv(
 @app.get("/available_ads_dimensions")
 async def get_available_ads_dimensions():
     return {"available_dimensions": list(ADS_DIMENSIONS.keys())}
+
+# Google Ads routes
+
+@app.get("/available_google_ads_metrics")
+async def get_available_google_ads_metrics():
+    return {"available_metrics": list(GOOGLE_ADS_METRICS.keys())}
+
+@app.get("/available_google_ads_dimensions")
+async def get_available_google_ads_dimensions():
+    return {"available_dimensions": list(GOOGLE_ADS_DIMENSIONS.keys())}
+
+def validate_google_ads_metrics(metrics: str) -> List[str]:
+    """Validate and filter Google Ads metrics"""
+    if not metrics:
+        return DEFAULT_GOOGLE_ADS_METRICS
+    
+    metrics_list = metrics.split(',')
+    return [m for m in metrics_list if m in GOOGLE_ADS_METRICS]
+
+def validate_google_ads_dimensions(dimensions: str) -> List[str]:
+    """Validate and filter Google Ads dimensions"""
+    if not dimensions:
+        return DEFAULT_GOOGLE_ADS_DIMENSIONS
+    
+    dimensions_list = dimensions.split(',')
+    return [d for d in dimensions_list if d in GOOGLE_ADS_DIMENSIONS]
+
+@app.get("/google_ads_campaigns")
+async def get_google_ads_campaigns(
+    client_id: str = Query(..., description="ID of the Google Ads client"),
+    metrics: str = Query(','.join(DEFAULT_GOOGLE_ADS_METRICS), description="Comma-separated list of metrics"),
+    dimensions: str = Query(','.join(DEFAULT_GOOGLE_ADS_DIMENSIONS), description="Comma-separated list of dimensions"),
+    date_range: str = Query('LAST_30_DAYS', description="Date range for the report (e.g., LAST_30_DAYS, LAST_7_DAYS, YESTERDAY)")
+):
+    try:
+        metrics_list = validate_google_ads_metrics(metrics)
+        dimensions_list = validate_google_ads_dimensions(dimensions)
+        
+        invalid_metrics = [m for m in metrics.split(',') if m not in GOOGLE_ADS_METRICS]
+        if invalid_metrics:
+            raise HTTPException(status_code=400, detail=f"Invalid metrics: {', '.join(invalid_metrics)}")
+        
+        invalid_dimensions = [d for d in dimensions.split(',') if d not in GOOGLE_ADS_DIMENSIONS]
+        if invalid_dimensions:
+            raise HTTPException(status_code=400, detail=f"Invalid dimensions: {', '.join(invalid_dimensions)}")
+        
+        campaigns = google_ads_manager.get_campaigns(client_id, metrics_list, dimensions_list, date_range)
+        
+        return {"campaigns": campaigns}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/google_ads_campaigns_csv")
+async def get_google_ads_campaigns_csv(
+    client_id: str = Query(..., description="ID of the Google Ads client"),
+    metrics: str = Query(','.join(DEFAULT_GOOGLE_ADS_METRICS), description="Comma-separated list of metrics"),
+    dimensions: str = Query(','.join(DEFAULT_GOOGLE_ADS_DIMENSIONS), description="Comma-separated list of dimensions"),
+    date_range: str = Query('LAST_30_DAYS', description="Date range for the report (e.g., LAST_30_DAYS, LAST_7_DAYS, YESTERDAY)")
+):
+    try:
+        metrics_list = validate_google_ads_metrics(metrics)
+        dimensions_list = validate_google_ads_dimensions(dimensions)
+        
+        invalid_metrics = [m for m in metrics.split(',') if m not in GOOGLE_ADS_METRICS]
+        if invalid_metrics:
+            raise HTTPException(status_code=400, detail=f"Invalid metrics: {', '.join(invalid_metrics)}")
+        
+        invalid_dimensions = [d for d in dimensions.split(',') if d not in GOOGLE_ADS_DIMENSIONS]
+        if invalid_dimensions:
+            raise HTTPException(status_code=400, detail=f"Invalid dimensions: {', '.join(invalid_dimensions)}")
+        
+        campaigns = google_ads_manager.get_campaigns(client_id, metrics_list, dimensions_list, date_range)
+        
+        if not campaigns:
+            custom_logger("No campaigns received, returning empty CSV", logging.WARNING)
+            return StreamingResponse(iter([""]), media_type="text/csv", headers={
+                "Content-Disposition": f"attachment; filename=empty_google_ads_campaigns_{client_id}.csv"
+            })
+        
+        csv_data = google_ads_insights_to_csv(campaigns, dimensions_list + metrics_list)
+        
+        response = StreamingResponse(iter([csv_data.getvalue()]), media_type="text/csv")
+        response.headers["Content-Disposition"] = f"attachment; filename=google_ads_campaigns_{client_id}.csv"
+        
+        return response
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)

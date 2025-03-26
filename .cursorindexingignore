@@ -1,0 +1,10 @@
+public/**
+.vscode/**
+docs/*
+.cursor/templates/*.md
+CHANGELOG.md
+README.md
+.cursorignore
+.cursor/launch.json
+.cursor/settings.json
+

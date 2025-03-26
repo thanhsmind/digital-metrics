@@ -1,0 +1,29 @@
+{
+  "commands": [
+    {
+      "name": "Khởi động API",
+      "command": "powershell -Command \"& { . .\\venv\\Scripts\\Activate.ps1; uvicorn app.main:app --reload }\"",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Debug",
+      "command": "powershell -Command \"& { . .\\venv\\Scripts\\Activate.ps1; python debug.py }\"",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Chạy Tests",
+      "command": "powershell -Command \"& { . .\\venv\\Scripts\\Activate.ps1; pytest }\"",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Cài đặt Packages",
+      "command": "powershell -Command \"& { . .\\venv\\Scripts\\Activate.ps1; pip install -r requirements.txt }\"",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Kích hoạt Môi trường",
+      "command": "powershell -Command \"& { . .\\venv\\Scripts\\Activate.ps1; cmd }\"",
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}

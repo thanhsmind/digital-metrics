@@ -1,146 +1,161 @@
-# FastAPI Application Deployment
+# Digital Metrics API
 
-This guide provides steps to set up a FastAPI application locally using Python and to deploy it on AWS using EKS and ECR.
-http://localhost:8000/facebook_insights_csv?page_id=196959856995780&since_date=2023-06-01&until_date=2023-06-30&metrics=impressions&token=YOUR_AUTH_TOKEN
+API service để lấy metrics từ Facebook Ads và Google Ads.
 
-## Local Setup
+## Tính năng
 
-### 1. Upgrade `pip` and Install Required Dependencies
+### Facebook Ads
+
+- Lấy insights từ các posts của business
+- Lấy insights từ reels
+- Lấy thông tin về ads campaigns
+- Hỗ trợ nhiều loại metrics khác nhau
+- Export dữ liệu dưới dạng CSV
+
+### Google Ads
+
+- Lấy insights từ campaigns
+- Lấy insights từ ad groups
+- Hỗ trợ nhiều metrics và dimensions
+- Export dữ liệu dưới dạng CSV
+
+## Cài đặt
+
+1. Clone repository:
 
 ```bash
-pip install --upgrade pip
+git clone <repository-url>
+cd digital-metrics
+```
+
+2. Tạo virtual environment:
+
+```bash
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+venv\Scripts\activate     # Windows
+```
+
+3. Cài đặt dependencies:
+
+```bash
 pip install -r requirements.txt
 ```
 
-### 2. Run FastAPI Locally
+4. Tạo file .env:
 
 ```bash
-uvicorn main:app --reload
+cp .env.example .env
 ```
 
-## Local with Docker
-
-### 1. Make the Shell Script Executable
+5. Cập nhật các biến môi trường trong .env:
 
 ```bash
-chmod +x run_local.sh
+# Facebook configuration
+FACEBOOK_APP_ID=your_app_id
+FACEBOOK_APP_SECRET=your_app_secret
+FACEBOOK_ACCESS_TOKEN=your_access_token
+
+# Google Ads configuration
+GOOGLE_ADS_CONFIG_FILE=google-ads.yaml
 ```
 
-### 2. Run the Shell Script
+6. Chạy ứng dụng:
 
 ```bash
-./run_local.sh
+uvicorn app.main:app --reload
 ```
 
-## Deploying on AWS
+## API Documentation
 
-### 3. Verify AWS CLI Configuration
+Sau khi chạy ứng dụng, bạn có thể truy cập:
 
-Ensure your AWS CLI is configured correctly by running:
+- API documentation: http://localhost:8000/docs
+- OpenAPI specification: http://localhost:8000/api/v1/openapi.json
 
-```bash
-aws sts get-caller-identity
+### Facebook Endpoints
+
+#### GET /api/v1/facebook/business_post_insights_csv
+
+Lấy insights của posts từ một business dưới dạng CSV.
+
+#### GET /api/v1/facebook/business_posts_and_reels_insights_csv
+
+Lấy insights của cả posts và reels từ một business dưới dạng CSV.
+
+#### GET /api/v1/facebook/available_metrics
+
+Xem danh sách các metrics có sẵn.
+
+### Google Ads Endpoints
+
+#### GET /api/v1/google/campaigns_csv
+
+Lấy insights của campaigns dưới dạng CSV.
+
+#### GET /api/v1/google/ad_groups_csv
+
+Lấy insights của ad groups dưới dạng CSV.
+
+#### GET /api/v1/google/available_metrics
+
+Xem danh sách các metrics có sẵn.
+
+#### GET /api/v1/google/available_dimensions
+
+Xem danh sách các dimensions có sẵn.
+
+## Link mẫu báo cáo Facebook
+
+Các link dưới đây có thể được sử dụng để lấy báo cáo Facebook Ads cho `business_id=1602411516748597` trong 30 ngày gần nhất.
+
+### Báo cáo post insights
+
+http://127.0.0.1:8000/api/v1/facebook/business_post_insights_csv?business_id=1602411516748597&since_date=2023-06-01&until_date=2023-06-30&metrics=impressions
+
+```
+# Báo cáo post insights với các metrics mặc định (impressions, reach, engaged_users, reactions)
+http://localhost:8000/api/v1/facebook/business_post_insights_csv?business_id=1602411516748597&since_date=2024-02-21&until_date=2024-03-21
+
+# Báo cáo với metrics tùy chỉnh
+http://localhost:8000/api/v1/facebook/business_post_insights_csv?business_id=1602411516748597&metrics=impressions,reach,engaged_users,reactions,clicks,like,love,video_views&since_date=2024-02-21&until_date=2024-03-21
+
+# Báo cáo tập trung vào video
+http://localhost:8000/api/v1/facebook/business_post_insights_csv?business_id=1602411516748597&metrics=video_views,video_views_10s,video_avg_time_watched,video_length&since_date=2024-02-21&until_date=2024-03-21
 ```
 
-### 4. Create an EKS Cluster
+### Báo cáo posts và reels insights
 
-```bash
-eksctl create cluster --name=minimal-cluster --region=us-east-1 --nodegroup-name=minimal-nodes --node-type=t3.micro --nodes=1 --nodes-min=1 --nodes-max=2 --node-volume-size=10 --managed
+```
+# Báo cáo post và reels với metrics mặc định
+http://localhost:8000/api/v1/facebook/business_posts_and_reels_insights_csv?business_id=1602411516748597&since_date=2024-02-21&until_date=2024-03-21
+
+# Báo cáo với post metrics tùy chỉnh
+http://localhost:8000/api/v1/facebook/business_posts_and_reels_insights_csv?business_id=1602411516748597&post_metrics=impressions,reach,engaged_users,clicks&reel_metrics=impressions,reach,reactions&since_date=2024-02-21&until_date=2024-03-21
+
+# Báo cáo tập trung vào reels
+http://localhost:8000/api/v1/facebook/business_posts_and_reels_insights_csv?business_id=1602411516748597&post_metrics=impressions,reach&reel_metrics=reels_total_number_milliseconds,reels_total_comment_share,reactions,reach,impressions&since_date=2024-02-21&until_date=2024-03-21
 ```
 
-### 5. Create an ECR Repository
+### Kiểm tra và debug
 
-```bash
-aws ecr create-repository --repository-name my-fastapi-app --region us-east-1
+```
+# Kiểm tra các metrics có sẵn
+http://localhost:8000/api/v1/facebook/available_metrics
+
+# Kiểm tra quyền truy cập vào các trang trong business
+http://localhost:8000/api/v1/facebook/check_business_pages_access?business_id=1602411516748597
+
+# Debug token
+http://localhost:8000/api/v1/facebook/debug_token?token={access_token}
 ```
 
-### 6. Build and Tag Docker Image
+Lưu ý: Các link này giả định rằng API đang chạy ở localhost trên cổng 8000. Điều chỉnh URL phù hợp với environment thực tế của bạn.
 
-```bash
-docker build -t my-fastapi-app .
-docker tag my-fastapi-app:latest <your-account>.dkr.ecr.us-east-1.amazonaws.com/my-fastapi-app:latest
+## Development
+
+### Project Structure
+
 ```
 
-### 7. Log in to ECR
-
-```bash
-aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <your-account>.dkr.ecr.us-east-1.amazonaws.com
-```
-
-### 8. Push Docker Image to ECR
-
-```bash
-docker push <your-account>.dkr.ecr.us-east-1.amazonaws.com/my-fastapi-app:latest
-```
-
-### 9. Apply Kubernetes Deployment and Service
-
-```bash
-kubectl apply -f deployment.yaml
-kubectl apply -f service.yaml
-```
-
-### 10. Check Deployment and Services Status
-
-```bash
-kubectl get deployments
-kubectl get services
-```
-
-## API Usage
-
-### 1. Add a New Item (POST)
-
-To add a new item to the list:
-
-```sh
-curl -X POST "http://a4c687170ef9043c78ff390877622a8a-333739630.us-east-1.elb.amazonaws.com/items/" -H "Content-Type: application/json" -d '{"id": 1, "name": "Item 1", "description": "This is item 1"}'
-```
-
-### 2. Try to Add an Item with the Same ID (POST)
-
-To check if the API returns an error when trying to add an item with an existing ID:
-
-```sh
-curl -X POST "http://a4c687170ef9043c78ff390877622a8a-333739630.us-east-1.elb.amazonaws.com/items/" -H "Content-Type: application/json" -d '{"id": 1, "name": "Another Item 1", "description": "This should fail"}'
-```
-
-### 3. Update an Existing Item (PUT)
-
-To update an item in the list:
-
-```sh
-curl -X PUT "http://127.0.0.1:8000/items/1" -H "Content-Type: application/json" -d '{"id": 1, "name": "Updated Item 1", "description": "This is the updated item 1"}'
-```
-
-### 4. Verify the Update (GET)
-
-To verify if the update was successful:
-
-```sh
-curl -X GET "http://127.0.0.1:8000/items/1"
-```
-
-### 5. Add Another New Item (POST)
-
-To add another item with a different ID to ensure the API continues to function correctly:
-
-```sh
-curl -X POST "http://a4c687170ef9043c78ff390877622a8a-333739630.us-east-1.elb.amazonaws.com/items/" -H "Content-Type: application/json" -d '{"id": 2, "name": "Item 2", "description": "This is item 2"}'
-```
-
-### 6. List All Items (GET)
-
-To list all items and check the current state of the in-memory database:
-
-```sh
-curl -X GET "http://a4c687170ef9043c78ff390877622a8a-333739630.us-east-1.elb.amazonaws.com/items/"
-```
-
-### 7. Try to Update a Non-existent Item (PUT)
-
-To attempt to update an item that does not exist in the list and check if the API returns a 404 error:
-
-```sh
-curl -X PUT "http://127.0.0.1:8000/items/3" -H "Content-Type: application/json" -d '{"id": 3, "name": "Non-existent Item", "description": "This should fail"}'
 ```

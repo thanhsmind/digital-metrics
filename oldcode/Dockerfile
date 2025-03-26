@@ -1,0 +1,15 @@
+# Dockerfile
+# Use the official Python image from the Docker Hub
+
+FROM python:3.9-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY main.py .
+COPY config.json .
+COPY google-ads.yaml .
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "80"]

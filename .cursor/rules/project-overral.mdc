@@ -1,0 +1,480 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+---
+description: FastAPI best practices và patterns cho dự án Digital Metrics API
+globs: app/*.py, app/**/*.md
+alwaysApply: true
+---
+## Endpoint Design
+- RESTful API design principles
+- Đặt tên endpoints rõ ràng và descriptive
+- Sử dụng HTTP methods đúng cách (GET, POST, PUT, DELETE)
+- Nhóm endpoints theo domain (facebook, google, auth)
+- Support query parameters cho filtering và pagination
+- Trả về appropriate HTTP status codes
+
+```python
+# Router Setup Pattern
+from fastapi import APIRouter, Query, HTTPException
+
+router = APIRouter()
+
+@router.get("/business_post_insights_csv")
+async def get_business_post_insights_csv(
+    business_id: str = Query(..., description="ID của business"),
+    metrics: str = Query("impressions,reach", description="Danh sách metrics"),
+    since_date: str = Query(..., description="Ngày bắt đầu (YYYY-MM-DD)"),
+    until_date: str = Query(..., description="Ngày kết thúc (YYYY-MM-DD)")
+):
+    """Get post insights cho business dưới định dạng CSV"""
+    # Implementation
+```
+
+## Path & Query Parameters
+- Validate parameters với Pydantic/FastAPI
+- Sử dụng Query objects với descriptive names và defaults
+- Đặt proper constraints (min/max length, regex patterns)
+- Hỗ trợ optional parameters
+- Provide clear descriptions cho OpenAPI docs
+
+```python
+# Parameter Validation Pattern
+from fastapi import Query, Path
+from datetime import date
+
+@router.get("/campaigns_csv")
+async def get_campaigns_csv(
+    client_id: str = Query(
+        ..., 
+        description="ID của Google Ads client",
+        min_length=5,
+        max_length=20
+    ),
+    metrics: str = Query(
+        ",".join(DEFAULT_GOOGLE_ADS_METRICS),
+        description="Danh sách metrics phân tách bằng dấu phẩy"
+    ),
+    start_date: date = Query(
+        None, 
+        description="Ngày bắt đầu (YYYY-MM-DD)",
+    ),
+    end_date: date = Query(
+        None, 
+        description="Ngày kết thúc (YYYY-MM-DD)",
+    ),
+    date_range: str = Query(
+        'LAST_30_DAYS',
+        description="Preset date range (thay thế cho start_date/end_date)"
+    )
+):
+    # Implementation
+```
+
+## Response Models
+- Định nghĩa response models với Pydantic
+- Consistent error response formats
+- Support nhiều response formats (JSON, CSV, etc.)
+- Trả về appropriate content types và headers
+- Documentation cho response schemas
+
+```python
+# Response Model Pattern
+from fastapi.responses import JSONResponse, StreamingResponse
+from pydantic import BaseModel
+from typing import List, Dict, Any, Optional
+
+class ErrorResponse(BaseModel):
+    status: str = "error"
+    message: str
+    details: Optional[Dict[str, Any]] = None
+
+@router.get("/available_metrics", response_model=Dict[str, List[str]])
+async def get_available_metrics():
+    """Get danh sách các metrics hỗ trợ"""
+    return {
+        "post_metrics": AVAILABLE_METRICS,
+        "reel_metrics": AVAILABLE_REEL_METRICS
+    }
+
+@router.get("/business_post_insights_csv")
+async def get_business_post_insights_csv(...):
+    try:
+        # CSV processing logic
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename=posts.csv"}
+        )
+    except Exception as e:
+        return JSONResponse(
+            status_code=400,
+            content={"status": "error", "message": str(e)}
+        )
+```
+
+## Data Models
+- Sử dụng Pydantic cho TẤT CẢ data models
+- Validate data với type annotations
+- Inheritance cho common fields
+- Use appropriate field constraints
+- Support model serialization/deserialization
+
+```python
+# Data Model Pattern
+from pydantic import BaseModel, Field
+from typing import Dict, Any, Optional
+from datetime import datetime
+
+class DateRange(BaseModel):
+    start_date: datetime
+    end_date: datetime
+
+class PostInsight(BaseModel):
+    post_id: str
+    created_time: datetime
+    message: Optional[str] = None
+    type: str = Field(..., description="Type of post (photo, video, etc)")
+    metrics: Dict[str, Any]
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "post_id": "123456789",
+                "created_time": "2023-01-01T12:00:00Z",
+                "message": "Example post content",
+                "type": "photo",
+                "metrics": {
+                    "impressions": 1000,
+                    "reach": 800,
+                    "engagement": 120
+                }
+            }
+        }
+```
+
+## Dependencies & Middleware
+- Sử dụng Depends cho dependency injection
+- Implement authentication middleware
+- CORS configuration
+- Rate limiting middleware
+- Logging middleware
+- Request tracking
+
+```python
+# Dependency Injection Pattern
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    
+    user = get_user(username)
+    if user is None:
+        raise credentials_exception
+    return user
+
+@router.get("/me")
+async def read_users_me(current_user = Depends(get_current_user)):
+    return current_user
+```
+
+## OpenAPI Documentation
+- Cung cấp chi tiết docstrings cho tất cả endpoints
+- Thêm examples cho requests và responses
+- Tags để nhóm endpoints
+- Custom OpenAPI configuration
+- Documentation links cho external references
+
+```python
+# API Documentation Pattern
+@router.get(
+    "/debug_token",
+    summary="Debug Facebook Access Token",
+    description="Debug và hiển thị thông tin về access token, bao gồm scopes, app info, và expiration",
+    response_model=TokenDebugInfo,
+    responses={
+        200: {
+            "description": "Thông tin của token",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "app_id": "123456789",
+                        "application": "My App",
+                        "expires_at": "2023-12-31T23:59:59",
+                        "is_valid": True,
+                        "scopes": ["email", "public_profile", "pages_show_list"],
+                        "user_id": "987654321"
+                    }
+                }
+            }
+        },
+        400: {
+            "description": "Invalid token",
+            "content": {
+                "application/json": {
+                    "example": {"status": "error", "message": "Invalid Facebook access token"}
+                }
+            }
+        }
+    }
+)
+async def debug_token(token: str = Query(...)):
+    """Debug và hiển thị thông tin về Facebook access token"""
+    return await facebook_api.debug_token(token)
+```
+
+## Error Handling
+- Sử dụng HTTPException với appropriate status codes
+- Consistent error response structure
+- Detailed error messages cho debugging
+- HTTP 4xx cho client errors và 5xx cho server errors
+- Try-except blocks cho external API calls
+
+```python
+# Error Handling Pattern
+@router.get("/business_posts_and_reels_insights_csv")
+async def get_business_posts_and_reels_insights_csv(...):
+    try:
+        # Validate metrics
+        post_metric_list = post_metrics.split(',')
+        reel_metric_list = reel_metrics.split(',')
+        
+        valid_post_metrics = [m for m in post_metric_list if m in AVAILABLE_METRICS]
+        valid_reel_metrics = [m for m in reel_metric_list if m in AVAILABLE_REEL_METRICS]
+        
+        if not valid_post_metrics and not valid_reel_metrics:
+            raise HTTPException(
+                status_code=400, 
+                detail="No valid metrics provided for posts or reels"
+            )
+        
+        # Implementation
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except FacebookRequestError as e:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Facebook API error: {e.api_error_message}"
+        )
+    except Exception as e:
+        logging.error(f"Unexpected error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+```
+
+## Authentication
+- JWT-based authentication
+- Role-based access control
+- Secure password handling
+- Token refresh strategy
+- OAuth integration
+- HTTPS everywhere (in production)
+
+```python
+# Authentication Pattern
+from datetime import datetime, timedelta
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+
+# Password hashing
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# JWT creation
+def create_access_token(data: dict, expires_delta: timedelta = None):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=15))
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+# Login endpoint
+@router.post("/token", response_model=Token)
+async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+    user = authenticate_user(form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+```
+
+## CSV Generation & File Handling
+- Streaming responses cho large files
+- In-memory processing khi có thể
+- Đúng content types và headers
+- Include BOM cho Excel compatibility
+- Proper CSV escaping và quoting
+
+```python
+# CSV Generation Pattern
+import csv
+from io import StringIO
+from fastapi.responses import StreamingResponse
+
+@router.get("/ad_groups_csv")
+async def get_ad_groups_csv(...):
+    try:
+        # Get data
+        insights = await google_ads_api.get_ad_group_insights(...)
+        
+        # Create CSV in memory
+        output = StringIO()
+        # Include UTF-8 BOM for Excel compatibility
+        output.write('\ufeff')
+        
+        # Determine all metric and dimension fields
+        fieldnames = ["client_id", "campaign_id", "campaign_name", 
+                     "ad_group_id", "ad_group_name"]
+        
+        # Add all metrics and dimensions to fieldnames
+        for insight in insights:
+            for key in insight.metrics:
+                if key not in fieldnames:
+                    fieldnames.append(key)
+            for key in insight.dimensions:
+                if key not in fieldnames:
+                    fieldnames.append(key)
+        
+        # Create CSV writer
+        writer = csv.DictWriter(
+            output, 
+            fieldnames=fieldnames,
+            quoting=csv.QUOTE_MINIMAL
+        )
+        writer.writeheader()
+        
+        # Write data rows
+        for insight in insights:
+            row = {
+                "client_id": insight.client_id,
+                "campaign_id": insight.campaign_id,
+                "campaign_name": insight.campaign_name,
+                "ad_group_id": insight.ad_group_id,
+                "ad_group_name": insight.ad_group_name,
+            }
+            # Add all metrics
+            for k, v in insight.metrics.items():
+                row[k] = v
+            # Add all dimensions
+            for k, v in insight.dimensions.items():
+                row[k] = v
+                
+            writer.writerow(row)
+        
+        # Return streaming response
+        output.seek(0)
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename=ad_groups.csv"}
+        )
+    except Exception as e:
+        # Error handling
+```
+
+## Configuration & Environment
+- Python-dotenv cho environment variables
+- Pydantic BaseSettings cho config validation
+- Separate development và production settings
+- Secrets management
+- Configuration typing và validation
+- Environment-specific behavior
+
+```python
+# Configuration Pattern
+from pydantic import BaseSettings, validator
+import os
+
+class Settings(BaseSettings):
+    PROJECT_NAME: str = "Digital Metrics API"
+    VERSION: str = "0.1.0"
+    DEBUG_MODE: bool = False
+    API_V1_STR: str = "/api/v1"
+    
+    # Facebook settings
+    FACEBOOK_APP_ID: str
+    FACEBOOK_APP_SECRET: str
+    FACEBOOK_ACCESS_TOKEN: str
+    FACEBOOK_API_VERSION: str = "v17.0"
+    
+    # Google Ads settings
+    GOOGLE_ADS_CONFIG_FILE: str = "google-ads.yaml"
+    
+    # JWT Authentication
+    SECRET_KEY: str
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    
+    # CORS
+    CORS_ORIGINS: list = ["*"]
+    
+    # Admin user - only used in development
+    ADMIN_USERNAME: str = "admin@example.com"
+    ADMIN_PASSWORD: str = ""
+    
+    @validator("ADMIN_PASSWORD", pre=True)
+    def admin_password_cannot_be_empty_in_production(cls, v, values):
+        env = os.getenv("ENVIRONMENT", "development")
+        if env == "production" and not v:
+            raise ValueError("Admin password cannot be empty in production")
+        return v
+    
+    class Config:
+        env_file = ".env"
+        case_sensitive = True
+
+settings = Settings()
+```
+
+## Application Startup & Shutdown
+- Khởi tạo cần thiết khi startup
+- Cleanup resources khi shutdown
+- Dependency caching
+- Connection pooling management
+- Service registry
+
+```python
+# Startup/Shutdown Pattern
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.on_event("startup")
+async def startup_db_client():
+    app.mongodb_client = AsyncIOMotorClient(settings.MONGODB_URL)
+    app.mongodb = app.mongodb_client[settings.MONGODB_DB_NAME]
+    
+    # Initialize API clients
+    app.facebook_api = FacebookApiManager()
+    app.google_ads_api = GoogleAdsManager()
+    
+    # Initialize Redis connection
+    app.redis = await aioredis.create_redis_pool(settings.REDIS_URL)
+
+@app.on_event("shutdown")
+async def shutdown_db_client():
+    app.mongodb_client.close()
+    app.redis.close()
+    await app.redis.wait_closed()
+``` 

@@ -1,0 +1,5 @@
+developer_token: YOUR_DEVELOPER_TOKEN_HERE
+client_id: YOUR_CLIENT_ID_HERE
+client_secret: YOUR_CLIENT_SECRET_HERE
+refresh_token: YOUR_REFRESH_TOKEN_HERE
+login_customer_id: YOUR_LOGIN_CUSTOMER_ID

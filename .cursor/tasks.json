@@ -1,0 +1,15 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "activateEnv",
+      "type": "shell",
+      "command": "powershell -Command \"& { . ${workspaceFolder}\\venv\\Scripts\\Activate.ps1 }\"",
+      "presentation": {
+        "reveal": "silent",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    }
+  ]
+}
