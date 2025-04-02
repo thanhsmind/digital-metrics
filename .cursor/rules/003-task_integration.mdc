@@ -1,0 +1,175 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+---
+description: Hướng dẫn tự động tích hợp task breakdown với memory-bank
+globs: memory-bank/tasks.md, docs/tasks/*.md
+alwaysApply: true
+---
+
+# Task Integration Rules
+
+## Mục Đích
+Tự động hóa việc tích hợp task breakdown từ các file trong `docs/tasks/` vào `memory-bank/tasks.md`
+
+## Cấu Trúc File
+
+### 1. Task Breakdown Files (docs/tasks/*.md)
+```markdown
+# [Feature Name] Tasks
+
+## Models
+- [ ] Task 1: [Task Description]
+  - [ ] Subtask 1.1
+  - [ ] Subtask 1.2
+
+## Services
+- [ ] Task 2: [Task Description]
+  - [ ] Subtask 2.1
+  - [ ] Subtask 2.2
+
+## API
+- [ ] Task 3: [Task Description]
+  - [ ] Subtask 3.1
+  - [ ] Subtask 3.2
+```
+
+### 2. Memory Bank Tasks (memory-bank/tasks.md)
+```markdown
+# Tasks
+
+## Active Tasks
+
+- [ ] [Feature Name] ([details](mdc:../docs/tasks/[feature].md) | [TDD](mdc:../docs/technical_designs/[feature].md))
+- [ ] [Main Task 1]
+- [ ] [Main Task 2]
+- [ ] [Main Task 3]
+
+## Completed Tasks
+
+- [x] [Completed Feature] ([details](mdc:../docs/tasks/[completed_feature].md) | [TDD](mdc:../docs/technical_designs/[completed_feature].md))
+```
+
+2.  **Cập nhật Section 4 (Tự Động Tạo Links):**
+
+    ```markdown
+    ### 4. Tự Động Tạo Links
+    - Tự động tạo link từ memory-bank tới file breakdown (`[details]`) và Technical Design Document (`[TDD]`).
+    - **Giả định rằng file TDD trong `docs/technical_designs/` có cùng tên gốc với file task breakdown trong `docs/tasks/` (ví dụ: `feature.md` trong cả hai thư mục).**
+    - Format: `([details](mdc:../docs/tasks/[feature].md) | [TDD](mdc:../docs/technical_designs/[feature].md))`
+    ```
+
+3.  **Cập nhật các ví dụ trong "Các Trường Hợp Đặc Biệt":**
+
+    ```markdown
+    ## Các Trường Hợp Đặc Biệt
+
+    ### 1. Task Mới
+    ```markdown
+    # New Task Integration
+    - [ ] [Feature Name] ([details](mdc:../docs/tasks/[feature].md) | [TDD](mdc:../docs/technical_designs/[feature].md))
+      - [ ] [New Main Task]
+    ```
+
+    ### 2. Task Hoàn Thành
+    ```markdown
+    ## Completed Tasks
+    - [x] [Feature Name] ([details](mdc:../docs/tasks/[feature].md) | [TDD](mdc:../docs/technical_designs/[feature].md))
+    ```
+
+    ### 3. Task Có Priority
+    ```markdown
+    - [ ] [Feature Name] (High Priority) ([details](mdc:../docs/tasks/[feature].md) | [TDD](mdc:../docs/technical_designs/[feature].md))
+    ```
+
+## Quy Tắc Tích Hợp
+
+### 1. Tự Động Phát Hiện Feature
+- Tên feature được lấy từ tên file trong `docs/tasks/`
+- Ví dụ: `Facebook.md` -> Feature: "Facebook Integration"
+
+### 2. Tự Động Phát Hiện Main Tasks
+- Main tasks là các tasks cấp cao nhất trong file breakdown
+- Bỏ qua các subtasks
+- Thêm "(High Priority)" nếu task có đánh dấu này
+
+### 3. Tự Động Cập Nhật Trạng Thái
+- Khi một task được đánh dấu hoàn thành trong file breakdown
+- Tự động cập nhật trạng thái trong memory-bank
+- Di chuyển task hoàn thành vào section "Completed Tasks"
+
+### 4. Tự Động Tạo Links
+- Tự động tạo link từ memory-bank tới file breakdown (`[d) và Technical Design Document (`[TDD]`).
+- **Giả định rằng file TDD trong `docs/technical_designs/` có cùng tên gốc với file task breakdown trong `docs/tasks/` (ví dụ: `feature.md` trong cả hai thư mục).**
+- Format: `([details](mdc:../docs/tasks/[feature].md) | [TDD](mdc:../docs/technical_designs/[feature].md))`
+
+### 5. Tự Động Phân Loại
+- Nhóm tasks theo categories:
+  - Models
+  - Services
+  - API
+  - Testing
+  - Documentation
+  - Deployment
+
+
+## Các Trường Hợp Đặc Biệt
+
+### 1. Task Mới
+```markdown
+# New Task Integration
+- [ ] [Feature Name] ([details](mdc:../docs/tasks/[feature].md) | [TDD](mdc:../docs/technical_designs/[feature].md))
+- [ ] [New Main Task]
+```
+
+### 2. Task Hoàn Thành
+```markdown
+## Completed Tasks
+- [x] [Feature Name] ([details](mdc:../docs/tasks/[feature].md) | [TDD](mdc:../docs/technical_designs/[feature].md))
+```
+
+### 3. Task Có Priority
+```markdown
+- [ ] [Feature Name] (High Priority) ([details](mdc:../docs/tasks/[feature].md) | [TDD](mdc:../docs/technical_designs/[feature].md))
+```
+
+## Quy Trình Tự Động
+
+1. **Phát Hiện Thay Đổi**
+   - Theo dõi thay đổi trong `docs/tasks/`
+   - Theo dõi thay đổi trong `memory-bank/tasks.md`
+
+2. **Phân Tích Task**
+   - Đọc cấu trúc task từ file breakdown
+   - Xác định main tasks và subtasks
+   - Phát hiện priority và dependencies
+
+3. **Cập Nhật Memory Bank**
+   - Thêm/sửa/xóa tasks trong memory-bank
+   - Cập nhật trạng thái
+   - Tạo/cập nhật links
+
+4. **Kiểm Tra Tính Nhất Quán**
+   - Đảm bảo trạng thái đồng bộ
+   - Kiểm tra links hợp lệ
+   - Kiểm tra format đúng
+
+## Lưu Ý
+
+1. **Không Tự Động Xóa**
+   - Không tự động xóa tasks đã hoàn thành
+   - Chỉ di chuyển vào section "Completed Tasks"
+
+2. **Giữ Format**
+   - Giữ nguyên format của memory-bank
+   - Không thay đổi cấu trúc file
+
+3. **Bảo Mật**
+   - Không tự động thay đổi nội dung task
+   - Chỉ cập nhật trạng thái và links
+
+4. **Backup**
+   - Tự động backup trước khi cập nhật
+   - Lưu lịch sử thay đổi 

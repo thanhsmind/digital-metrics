@@ -17,6 +17,7 @@ from app.models.core import (
 from app.models.facebook import (
     AdsInsight,
     BusinessPage,
+    FacebookCampaignMetricsRequest,
     FacebookMetricsRequest,
     FacebookMetricsResponse,
     PageToken,
@@ -42,6 +43,7 @@ __all__ = [
     "MetricsResponse",
     # Facebook models
     "FacebookMetricsRequest",
+    "FacebookCampaignMetricsRequest",
     "FacebookMetricsResponse",
     "PageToken",
     "PostInsight",

@@ -1,0 +1,421 @@
+{
+  "info": {
+    "name": "Digital Metrics - Facebook APIs",
+    "description": "Collection of Facebook API endpoints for Digital Metrics",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Business Post Insights",
+      "item": [
+        {
+          "name": "Get Business Post Insights CSV",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/facebook/business_post_insights_csv?business_id=675341657897354&metrics=post_impressions,post_reach,post_engaged_users&since_date=2024-03-01&until_date=2024-03-31",
+              "host": ["{{base_url}}"],
+              "path": ["facebook", "business_post_insights_csv"],
+              "query": [
+                {
+                  "key": "business_id",
+                  "value": "675341657897354"
+                },
+                {
+                  "key": "metrics",
+                  "value": "post_impressions,post_reach,post_engaged_users"
+                },
+                {
+                  "key": "since_date",
+                  "value": "2024-03-01"
+                },
+                {
+                  "key": "until_date",
+                  "value": "2024-03-31"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Business Posts and Reels Insights",
+      "item": [
+        {
+          "name": "Get Business Posts and Reels Insights CSV",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/facebook/business_posts_and_reels_insights_csv?business_id=675341657897354&post_metrics=post_impressions,post_reach&reel_metrics=video_total_views,video_avg_time_watched&since_date=2024-03-01&until_date=2024-03-31",
+              "host": ["{{base_url}}"],
+              "path": ["facebook", "business_posts_and_reels_insights_csv"],
+              "query": [
+                {
+                  "key": "business_id",
+                  "value": "675341657897354"
+                },
+                {
+                  "key": "post_metrics",
+                  "value": "post_impressions,post_reach"
+                },
+                {
+                  "key": "reel_metrics",
+                  "value": "video_total_views,video_avg_time_watched"
+                },
+                {
+                  "key": "since_date",
+                  "value": "2024-03-01"
+                },
+                {
+                  "key": "until_date",
+                  "value": "2024-03-31"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Campaign Metrics",
+      "item": [
+        {
+          "name": "Get Campaign Metrics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/facebook/campaign_metrics?ad_account_id=act_123456789&campaign_ids=23456789,34567890&metrics=spend,impressions,reach&since_date=2024-03-01&until_date=2024-03-31",
+              "host": ["{{base_url}}"],
+              "path": ["facebook", "campaign_metrics"],
+              "query": [
+                {
+                  "key": "ad_account_id",
+                  "value": "act_123456789"
+                },
+                {
+                  "key": "campaign_ids",
+                  "value": "23456789,34567890"
+                },
+                {
+                  "key": "metrics",
+                  "value": "spend,impressions,reach"
+                },
+                {
+                  "key": "since_date",
+                  "value": "2024-03-01"
+                },
+                {
+                  "key": "until_date",
+                  "value": "2024-03-31"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Campaign Metrics CSV",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/facebook/campaign_metrics_csv?ad_account_id=act_123456789&metrics=spend,impressions,reach&start_date=2024-03-01&end_date=2024-03-31&dimensions=age,gender",
+              "host": ["{{base_url}}"],
+              "path": ["facebook", "campaign_metrics_csv"],
+              "query": [
+                {
+                  "key": "ad_account_id",
+                  "value": "act_123456789"
+                },
+                {
+                  "key": "metrics",
+                  "value": "spend,impressions,reach"
+                },
+                {
+                  "key": "start_date",
+                  "value": "2024-03-01"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2024-03-31"
+                },
+                {
+                  "key": "dimensions",
+                  "value": "age,gender"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Post Metrics",
+      "item": [
+        {
+          "name": "Get Post Metrics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/facebook/post_metrics?page_id=123456789&post_ids=123_456,123_457&metrics=impressions,reach&since_date=2024-03-01&until_date=2024-03-31",
+              "host": ["{{base_url}}"],
+              "path": ["facebook", "post_metrics"],
+              "query": [
+                {
+                  "key": "page_id",
+                  "value": "123456789"
+                },
+                {
+                  "key": "post_ids",
+                  "value": "123_456,123_457"
+                },
+                {
+                  "key": "metrics",
+                  "value": "impressions,reach"
+                },
+                {
+                  "key": "since_date",
+                  "value": "2024-03-01"
+                },
+                {
+                  "key": "until_date",
+                  "value": "2024-03-31"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Post Metrics CSV",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/facebook/post_metrics_csv?page_id=123456789&metrics=post_impressions,post_reach,post_engaged_users&start_date=2024-03-01&end_date=2024-03-31",
+              "host": ["{{base_url}}"],
+              "path": ["facebook", "post_metrics_csv"],
+              "query": [
+                {
+                  "key": "page_id",
+                  "value": "123456789"
+                },
+                {
+                  "key": "metrics",
+                  "value": "post_impressions,post_reach,post_engaged_users"
+                },
+                {
+                  "key": "start_date",
+                  "value": "2024-03-01"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2024-03-31"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reel Metrics",
+      "item": [
+        {
+          "name": "Get Reel Metrics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/facebook/reel_metrics?page_id=123456789&metrics=video_total_views,video_avg_time_watched&since_date=2024-03-01&until_date=2024-03-31",
+              "host": ["{{base_url}}"],
+              "path": ["facebook", "reel_metrics"],
+              "query": [
+                {
+                  "key": "page_id",
+                  "value": "123456789"
+                },
+                {
+                  "key": "metrics",
+                  "value": "video_total_views,video_avg_time_watched"
+                },
+                {
+                  "key": "since_date",
+                  "value": "2024-03-01"
+                },
+                {
+                  "key": "until_date",
+                  "value": "2024-03-31"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Reel Metrics CSV",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/facebook/reel_metrics_csv?page_id=123456789&metrics=video_total_views,video_avg_time_watched,video_view_time&start_date=2024-03-01&end_date=2024-03-31",
+              "host": ["{{base_url}}"],
+              "path": ["facebook", "reel_metrics_csv"],
+              "query": [
+                {
+                  "key": "page_id",
+                  "value": "123456789"
+                },
+                {
+                  "key": "metrics",
+                  "value": "video_total_views,video_avg_time_watched,video_view_time"
+                },
+                {
+                  "key": "start_date",
+                  "value": "2024-03-01"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2024-03-31"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Utility Endpoints",
+      "item": [
+        {
+          "name": "Get Available Metrics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/facebook/available_metrics",
+              "host": ["{{base_url}}"],
+              "path": ["facebook", "available_metrics"]
+            }
+          }
+        },
+        {
+          "name": "Debug Token",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/facebook/debug_token?token={{access_token}}",
+              "host": ["{{base_url}}"],
+              "path": ["facebook", "debug_token"],
+              "query": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Check Business Pages Access",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/facebook/check_business_pages_access?business_id=675341657897354",
+              "host": ["{{base_url}}"],
+              "path": ["facebook", "check_business_pages_access"],
+              "query": [
+                {
+                  "key": "business_id",
+                  "value": "675341657897354"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "YOUR_ACCESS_TOKEN",
+      "type": "string"
+    }
+  ]
+}

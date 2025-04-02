@@ -11,7 +11,12 @@ FacebookAuthService là một service quản lý xác thực và ủy quyền ch
 - Cung cấp OAuth flow cho việc xác thực và ủy quyền với Facebook
 - Quản lý lifecycle của access tokens và refresh tokens
 - Tự động refresh tokens trước khi hết hạn
-- Cung cấp cơ chế lưu trữ bảo mật cho tokens
+- Quy trình refresh tokens khép kín các bước
+  - Lấy Mã Xác Thực (Authorization Code)
+  - Đổi Mã Xác Thực Thành Short-Lived Token
+  - Đổi Short-Lived Token Thành Long-Lived Token
+  - Sau đó cập nhật lưu trữ lại tokens này
+- Cung cấp cơ chế lưu trữ tokens đơn giản bằng json
 - Kiểm tra và xác thực tokens
 - Hỗ trợ xử lý lỗi và retry
 
@@ -153,8 +158,7 @@ sequenceDiagram
 - facebook-business==16.0.0 (Meta for Developers SDK)
 - pydantic==1.10.8
 - python-jose[cryptography]==3.3.0 (để mã hóa tokens)
-- SQLAlchemy==2.0.20 (cho token storage)
-- aioredis==2.0.1 (cho distributed locking)
+- token.json (cho token storage)
 
 ### 3.6 Security
 
@@ -175,7 +179,7 @@ sequenceDiagram
 
 - Tokens nên được lưu trữ trong database với mã hóa thay vì memory
 - Cần có cơ chế để revoking tokens khi cần
-- Cung cấp UI cho user để quản lý connections và permissions
+- Tất cả quy trình này đều là API nên cần có quy trình khép kín để kiểm soát mà không cần UI
 - Xử lý edge cases như Facebook API changes và deprecations
 - Áp dụng caching cho token validation để giảm calls đến Facebook API
 
@@ -197,8 +201,5 @@ sequenceDiagram
 
 ## 7. Các Khả Năng Mở Rộng Trong Tương Lai
 
-- Hỗ trợ cho Instagram và các platform khác
-- Support multi-tenant authentication
-- Integration với OAuth providers khác
 - Enhanced permissions management
 - Audit logs cho authentication và authorization

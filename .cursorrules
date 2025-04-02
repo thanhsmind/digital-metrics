@@ -1,0 +1,28 @@
+# Cursor Rules for Digital Metrics API
+
+## File Organization
+
+- src/: Core application code
+- services/: External service integrations
+- tests/: Test files
+- docs/: Documentation
+- config/: Configuration files
+
+## Coding Standards
+
+- Follow PEP 8
+- Use type hints
+- Document all functions and classes
+- Comprehensive error handling
+
+## Testing Requirements
+
+- Unit tests for all components
+- Integration tests for services
+- Test coverage requirements
+
+## Documentation
+
+- Update Memory Bank for all changes
+- Document architectural decisions
+- Maintain API documentation

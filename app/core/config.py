@@ -10,14 +10,11 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     DEBUG_MODE: bool = True
 
-    # Redis configuration
-    REDIS_URL: str = "redis://localhost:6379/0"
-    REDIS_HOST: str = "localhost"
-    REDIS_PORT: str = "6379"
-    REDIS_PASSWORD: str = "secure_password"
-    REDIS_SSL: str = "false"
-    REDIS_DB: str = "0"
-    REDIS_MAX_CONNECTIONS: str = "100"
+    # Secret key cho mã hóa
+    SECRET_KEY: str = "token_encryption_key_change_in_production"
+
+    # API Key cho internal endpoints
+    INTERNAL_API_KEY: str = "internal_api_key_change_in_production"
 
     # Facebook configuration
     FACEBOOK_APP_ID: Optional[str] = None
@@ -28,9 +25,16 @@ class Settings(BaseSettings):
         "http://localhost:8000/api/v1/auth/facebook/callback"
     )
 
-    # File paths
-    CONFIG_FILE: str = "config.json"
+    # Google configuration
     GOOGLE_ADS_CONFIG_FILE: str = "config/google-ads.yaml"
+
+    # File paths for token storage
+    TOKEN_STORAGE_DIR: str = "tokens"
+    FACEBOOK_TOKEN_FILE: str = "tokens/facebook_tokens.json"
+    GOOGLE_TOKEN_FILE: str = "tokens/google_tokens.json"
+
+    # Cấu hình cho file config chung
+    CONFIG_FILE: str = "config/config.json"
 
     model_config = {
         "case_sensitive": True,

@@ -1,4 +1,5 @@
 import logging
+import os
 
 import uvicorn
 from fastapi import FastAPI
@@ -29,8 +30,11 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 @app.on_event("startup")
 async def startup_event():
     """
-    Kiểm tra các cấu hình bắt buộc khi khởi động ứng dụng
+    Khởi tạo các cấu hình cần thiết khi khởi động ứng dụng
     """
+    # Đảm bảo thư mục token tồn tại
+    os.makedirs(settings.TOKEN_STORAGE_DIR, exist_ok=True)
+
     # Kiểm tra cấu hình Facebook
     if not settings.FACEBOOK_APP_ID or not settings.FACEBOOK_APP_SECRET:
         logging.warning(

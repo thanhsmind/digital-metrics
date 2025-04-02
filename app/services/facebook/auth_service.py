@@ -1,10 +1,10 @@
 import json
 import logging
+import os
 import secrets
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
-import redis.asyncio as redis_asyncio
 from facebook_business.adobjects.user import User
 from facebook_business.api import FacebookAdsApi
 from facebook_business.exceptions import FacebookRequestError
@@ -17,6 +17,7 @@ from app.models.auth import (
     FacebookUserToken,
     TokenValidationResponse,
 )
+from app.utils.encryption import TokenEncryption
 
 
 class FacebookAuthService:
@@ -34,22 +35,46 @@ class FacebookAuthService:
             "pages_read_engagement",
             "ads_read",
         ]
-        self.redis = None
+        self.token_file = settings.FACEBOOK_TOKEN_FILE
+        self.tokens_data = {}
+        # Đảm bảo thư mục tồn tại
+        self._ensure_token_dir_exists()
+        self._load_tokens()
+
+    def _ensure_token_dir_exists(self):
+        """Đảm bảo thư mục lưu trữ token tồn tại"""
+        os.makedirs(os.path.dirname(self.token_file), exist_ok=True)
 
     async def initialize(self):
         """Khởi tạo service và các kết nối cần thiết"""
-        await self._init_redis()
         return self
 
-    async def _init_redis(self):
-        """Khởi tạo kết nối Redis"""
+    def _load_tokens(self):
+        """Tải tokens từ file JSON"""
         try:
-            self.redis = redis_asyncio.from_url(settings.REDIS_URL)
-            logging.info("Connected to Redis for token storage")
+            if os.path.exists(self.token_file):
+                with open(self.token_file, "r") as f:
+                    self.tokens_data = json.load(f)
+                logging.info(f"Loaded tokens from {self.token_file}")
+            else:
+                self.tokens_data = {"user_tokens": {}, "page_tokens": {}}
+                logging.info(
+                    f"No token file found at {self.token_file}, created new token store"
+                )
         except Exception as e:
-            logging.error(f"Failed to connect to Redis: {str(e)}")
-            # Sử dụng fallback là memory storage
-            self.redis = None
+            logging.error(f"Error loading tokens from file: {str(e)}")
+            self.tokens_data = {"user_tokens": {}, "page_tokens": {}}
+
+    def _save_tokens(self):
+        """Lưu tokens vào file JSON"""
+        try:
+            with open(self.token_file, "w") as f:
+                json.dump(self.tokens_data, f, indent=2)
+            logging.info(f"Saved tokens to {self.token_file}")
+            return True
+        except Exception as e:
+            logging.error(f"Error saving tokens to file: {str(e)}")
+            return False
 
     def get_authorization_url(
         self, scopes: Optional[List[str]] = None, state: Optional[str] = None
@@ -503,37 +528,76 @@ class FacebookAuthService:
 
     async def _store_user_token(self, token: FacebookUserToken) -> None:
         """Lưu user token vào storage"""
-        if not self.redis:
-            logging.warning("Redis not available, token will not be persisted")
-            return
-
         try:
-            key = f"facebook:user_token:{token.user_id}"
-            await self.redis.set(key, token.json())
-            # Set expiration time nếu token có
-            if token.expires_at:
-                ttl = int((token.expires_at - datetime.now()).total_seconds())
-                if ttl > 0:
-                    await self.redis.expire(
-                        key, ttl + 86400
-                    )  # Thêm 1 ngày buffer
+            # Mã hóa token trước khi lưu
+            token_json = token.json()
+            encrypted_token = TokenEncryption.encrypt_token(token_json)
+
+            if not encrypted_token:
+                logging.error(
+                    "Failed to encrypt token, storing without encryption"
+                )
+                token_data = token.dict()
+                token_data["encrypted"] = False
+            else:
+                token_data = {"encrypted": True, "token": encrypted_token}
+
+            # Thêm timestamp
+            token_data["updated_at"] = datetime.now().isoformat()
+
+            # Lưu vào dictionary
+            if "user_tokens" not in self.tokens_data:
+                self.tokens_data["user_tokens"] = {}
+
+            self.tokens_data["user_tokens"][token.user_id] = token_data
+
+            # Lưu vào file
+            self._save_tokens()
         except Exception as e:
             logging.error(f"Error storing user token: {str(e)}")
 
     async def _store_page_token(self, token: FacebookPageToken) -> None:
         """Lưu page token vào storage"""
-        if not self.redis:
-            logging.warning("Redis not available, token will not be persisted")
-            return
-
         try:
-            # Lưu theo page ID
-            page_key = f"facebook:page_token:{token.page_id}"
-            await self.redis.set(page_key, token.json())
+            # Mã hóa token trước khi lưu
+            token_json = token.json()
+            encrypted_token = TokenEncryption.encrypt_token(token_json)
+
+            if not encrypted_token:
+                logging.error(
+                    "Failed to encrypt token, storing without encryption"
+                )
+                token_data = token.dict()
+                token_data["encrypted"] = False
+            else:
+                token_data = {"encrypted": True, "token": encrypted_token}
+
+            # Thêm timestamp
+            token_data["updated_at"] = datetime.now().isoformat()
+
+            # Lưu vào dictionary
+            if "page_tokens" not in self.tokens_data:
+                self.tokens_data["page_tokens"] = {}
+
+            self.tokens_data["page_tokens"][token.page_id] = token_data
 
             # Lưu vào list pages của user
-            user_pages_key = f"facebook:user_pages:{token.user_id}"
-            await self.redis.sadd(user_pages_key, token.page_id)
+            if "user_pages" not in self.tokens_data:
+                self.tokens_data["user_pages"] = {}
+
+            if token.user_id not in self.tokens_data["user_pages"]:
+                self.tokens_data["user_pages"][token.user_id] = []
+
+            if (
+                token.page_id
+                not in self.tokens_data["user_pages"][token.user_id]
+            ):
+                self.tokens_data["user_pages"][token.user_id].append(
+                    token.page_id
+                )
+
+            # Lưu vào file
+            self._save_tokens()
         except Exception as e:
             logging.error(f"Error storing page token: {str(e)}")
 
@@ -541,17 +605,33 @@ class FacebookAuthService:
         self, user_id: str
     ) -> Optional[FacebookUserToken]:
         """Lấy user token từ storage"""
-        if not self.redis:
-            logging.warning("Redis not available, cannot retrieve token")
-            return None
-
         try:
-            key = f"facebook:user_token:{user_id}"
-            data = await self.redis.get(key)
-            if not data:
+            if (
+                "user_tokens" not in self.tokens_data
+                or user_id not in self.tokens_data["user_tokens"]
+            ):
                 return None
 
-            return FacebookUserToken.parse_raw(data)
+            token_data = self.tokens_data["user_tokens"][user_id]
+
+            # Kiểm tra xem token có mã hóa không
+            if token_data.get("encrypted", False):
+                encrypted_token = token_data.get("token")
+                if not encrypted_token:
+                    logging.error(
+                        f"Encrypted token for user {user_id} not found"
+                    )
+                    return None
+
+                decrypted_data = TokenEncryption.decrypt_token(encrypted_token)
+                if not decrypted_data:
+                    logging.error(f"Failed to decrypt token for user {user_id}")
+                    return None
+
+                return FacebookUserToken.parse_raw(decrypted_data)
+            else:
+                # Token lưu dưới dạng raw dict
+                return FacebookUserToken(**token_data)
         except Exception as e:
             logging.error(f"Error retrieving user token: {str(e)}")
             return None
@@ -560,17 +640,81 @@ class FacebookAuthService:
         self, page_id: str
     ) -> Optional[FacebookPageToken]:
         """Lấy page token từ storage"""
-        if not self.redis:
-            logging.warning("Redis not available, cannot retrieve token")
-            return None
-
         try:
-            key = f"facebook:page_token:{page_id}"
-            data = await self.redis.get(key)
-            if not data:
+            if (
+                "page_tokens" not in self.tokens_data
+                or page_id not in self.tokens_data["page_tokens"]
+            ):
                 return None
 
-            return FacebookPageToken.parse_raw(data)
+            token_data = self.tokens_data["page_tokens"][page_id]
+
+            # Kiểm tra xem token có mã hóa không
+            if token_data.get("encrypted", False):
+                encrypted_token = token_data.get("token")
+                if not encrypted_token:
+                    logging.error(
+                        f"Encrypted token for page {page_id} not found"
+                    )
+                    return None
+
+                decrypted_data = TokenEncryption.decrypt_token(encrypted_token)
+                if not decrypted_data:
+                    logging.error(f"Failed to decrypt token for page {page_id}")
+                    return None
+
+                return FacebookPageToken.parse_raw(decrypted_data)
+            else:
+                # Token lưu dưới dạng raw dict
+                return FacebookPageToken(**token_data)
         except Exception as e:
             logging.error(f"Error retrieving page token: {str(e)}")
             return None
+
+    async def encrypt_all_stored_tokens(self) -> Dict[str, int]:
+        """
+        Mã hóa lại tất cả token đã lưu trữ
+        Hữu ích khi migrate từ hệ thống không mã hóa sang có mã hóa
+
+        Returns:
+            Dict gồm số lượng token đã mã hóa theo loại
+        """
+        result = {"user_tokens": 0, "page_tokens": 0}
+
+        try:
+            # Tải lại tokens từ file
+            self._load_tokens()
+
+            # Mã hóa user tokens
+            if "user_tokens" in self.tokens_data:
+                for user_id, token_data in list(
+                    self.tokens_data["user_tokens"].items()
+                ):
+                    if not token_data.get("encrypted", False):
+                        # Tạo token object
+                        user_token = FacebookUserToken(**token_data)
+                        # Lưu lại với mã hóa
+                        await self._store_user_token(user_token)
+                        result["user_tokens"] += 1
+                        logging.info(f"Encrypted user token for user {user_id}")
+
+            # Mã hóa page tokens
+            if "page_tokens" in self.tokens_data:
+                for page_id, token_data in list(
+                    self.tokens_data["page_tokens"].items()
+                ):
+                    if not token_data.get("encrypted", False):
+                        # Tạo token object
+                        page_token = FacebookPageToken(**token_data)
+                        # Lưu lại với mã hóa
+                        await self._store_page_token(page_token)
+                        result["page_tokens"] += 1
+                        logging.info(f"Encrypted page token for page {page_id}")
+
+            # Lưu thay đổi
+            self._save_tokens()
+
+            return result
+        except Exception as e:
+            logging.error(f"Error encrypting stored tokens: {str(e)}")
+            return result

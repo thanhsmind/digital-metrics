@@ -53,6 +53,20 @@ class ValidationError(APIError):
         )
 
 
+class ConfigError(APIError):
+    """
+    Error khi configuration loading hoặc validation fails.
+
+    Attributes:
+        message: Thông báo lỗi
+    """
+
+    def __init__(self, message: str):
+        super().__init__(
+            message=message, status_code=500, error_code="CONFIG_ERROR"
+        )
+
+
 class AuthenticationError(APIError):
     """
     Error khi authentication fails.

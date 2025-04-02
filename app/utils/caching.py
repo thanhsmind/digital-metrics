@@ -8,7 +8,6 @@ from functools import wraps
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from fastapi import Depends, Request
-from redis import Redis
 
 from app.utils.logging import get_logger
 
@@ -59,17 +58,16 @@ class Cache:
 
 class InMemoryCache(Cache):
     """
-    Simple in-memory cache implementation, phù hợp cho development
-    hoặc ứng dụng nhỏ.
+    In-memory cache implementation, phù hợp cho development và testing.
     """
 
     def __init__(self):
-        """Initialize empty cache storage."""
-        self.cache: Dict[str, Tuple[Any, Optional[datetime]]] = {}
+        """Initialize cache storage."""
+        self.cache: Dict[str, Dict[str, Any]] = {}
 
     def get(self, key: str) -> Optional[Any]:
         """
-        Get value từ cache.
+        Get value từ in-memory cache.
 
         Args:
             key: Cache key
@@ -80,33 +78,36 @@ class InMemoryCache(Cache):
         if key not in self.cache:
             return None
 
-        value, expiry = self.cache[key]
+        cache_item = self.cache[key]
+        expires_at = cache_item.get("expires_at")
 
-        # Check expiry
-        if expiry is not None and expiry < datetime.now():
+        # Kiểm tra expiration
+        if expires_at and expires_at < datetime.now():
+            # Cache đã hết hạn
             self.delete(key)
             return None
 
-        return value
+        return cache_item.get("value")
 
     def set(self, key: str, value: Any, ttl: Optional[int] = None) -> None:
         """
-        Set value vào cache.
+        Set value vào in-memory cache.
 
         Args:
             key: Cache key
             value: Value cần cache
             ttl: Time to live (seconds)
         """
-        expiry = None
-        if ttl is not None:
-            expiry = datetime.now() + timedelta(seconds=ttl)
+        cache_item = {"value": value}
 
-        self.cache[key] = (value, expiry)
+        if ttl is not None:
+            cache_item["expires_at"] = datetime.now() + timedelta(seconds=ttl)
+
+        self.cache[key] = cache_item
 
     def delete(self, key: str) -> None:
         """
-        Xóa key từ cache.
+        Xóa key từ in-memory cache.
 
         Args:
             key: Cache key
@@ -115,281 +116,21 @@ class InMemoryCache(Cache):
             del self.cache[key]
 
     def clear(self) -> None:
-        """Clear entire cache."""
+        """Clear entire in-memory cache."""
         self.cache.clear()
-
-
-class RedisCache(Cache):
-    """
-    Redis-based cache implementation, phù hợp cho production.
-    """
-
-    def __init__(self, redis_client: Redis, prefix: str = "digital_metrics:"):
-        """
-        Initialize Redis cache.
-
-        Args:
-            redis_client: Redis client
-            prefix: Prefix cho cache keys
-        """
-        self.redis = redis_client
-        self.prefix = prefix
-
-    def _build_key(self, key: str) -> str:
-        """
-        Build full Redis key với prefix.
-
-        Args:
-            key: Original key
-
-        Returns:
-            Full prefixed key
-        """
-        return f"{self.prefix}{key}"
-
-    def get(self, key: str) -> Optional[Any]:
-        """
-        Get value từ Redis cache.
-
-        Args:
-            key: Cache key
-
-        Returns:
-            Cached value hoặc None nếu không có
-        """
-        full_key = self._build_key(key)
-        cached_data = self.redis.get(full_key)
-
-        if cached_data is None:
-            return None
-
-        try:
-            return pickle.loads(cached_data)
-        except Exception as e:
-            logger.error(f"Error deserializing cached data: {str(e)}")
-            return None
-
-    def set(self, key: str, value: Any, ttl: Optional[int] = None) -> None:
-        """
-        Set value vào Redis cache.
-
-        Args:
-            key: Cache key
-            value: Value cần cache
-            ttl: Time to live (seconds)
-        """
-        full_key = self._build_key(key)
-
-        try:
-            serialized_value = pickle.dumps(value)
-            if ttl is not None:
-                self.redis.setex(full_key, ttl, serialized_value)
-            else:
-                self.redis.set(full_key, serialized_value)
-        except Exception as e:
-            logger.error(f"Error serializing data for cache: {str(e)}")
-
-    def delete(self, key: str) -> None:
-        """
-        Xóa key từ Redis cache.
-
-        Args:
-            key: Cache key
-        """
-        full_key = self._build_key(key)
-        self.redis.delete(full_key)
-
-    def clear(self) -> None:
-        """Clear all keys with prefix from Redis."""
-        cursor = "0"
-        pattern = f"{self.prefix}*"
-
-        while cursor != 0:
-            cursor, keys = self.redis.scan(cursor=cursor, match=pattern)
-            if keys:
-                self.redis.delete(*keys)
-
-
-# Utilities và decorators
-
-
-def generate_cache_key(prefix: str, *args: Any, **kwargs: Any) -> str:
-    """
-    Generate cache key dựa trên args và kwargs.
-
-    Args:
-        prefix: Prefix cho cache key
-        *args: Positional args
-        **kwargs: Keyword args
-
-    Returns:
-        Cache key string
-
-    Examples:
-        >>> generate_cache_key("metrics", "facebook", date_range="2023-01-01_2023-01-31")
-        'metrics:facebook:date_range=2023-01-01_2023-01-31'
-    """
-    # Convert args and kwargs thành string để hash
-    key_parts = [prefix]
-
-    if args:
-        key_parts.extend([str(arg) for arg in args])
-
-    if kwargs:
-        # Sort để đảm bảo cache keys giống nhau cho cùng kwargs
-        sorted_items = sorted(kwargs.items())
-        key_parts.extend([f"{k}={v}" for k, v in sorted_items])
-
-    return ":".join(key_parts)
-
-
-def hash_cache_key(key: str) -> str:
-    """
-    Hash cache key nếu nó quá dài.
-
-    Args:
-        key: Original cache key
-
-    Returns:
-        Hashed cache key
-
-    Examples:
-        >>> len(hash_cache_key("very_long_key" * 100)) < 100
-        True
-    """
-    if len(key) < 100:  # Redis keys nên ngắn
-        return key
-
-    hash_obj = hashlib.md5(key.encode())
-    return f"{key[:20]}:{hash_obj.hexdigest()}"
-
-
-def cached(
-    cache: Cache,
-    prefix: str = "",
-    ttl: Optional[int] = 3600,
-    key_builder: Optional[Callable] = None,
-) -> Callable:
-    """
-    Decorator để cache function results.
-
-    Args:
-        cache: Cache instance
-        prefix: Key prefix
-        ttl: Cache TTL (seconds)
-        key_builder: Custom function để tạo cache key
-
-    Returns:
-        Decorated function
-
-    Examples:
-        >>> cache = InMemoryCache()
-        >>> @cached(cache, prefix="test", ttl=60)
-        ... def expensive_operation(x, y):
-        ...     print("Computing...")
-        ...     return x + y
-        >>>
-        >>> expensive_operation(1, 2)  # Will print "Computing..."
-        Computing...
-        3
-        >>> expensive_operation(1, 2)  # No print, uses cached value
-        3
-    """
-
-    def decorator(func: Callable) -> Callable:
-        @wraps(func)
-        async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
-            # Generate cache key
-            if key_builder:
-                cache_key = key_builder(*args, **kwargs)
-            else:
-                func_prefix = f"{prefix}:{func.__module__}:{func.__name__}"
-                cache_key = generate_cache_key(func_prefix, *args, **kwargs)
-
-            cache_key = hash_cache_key(cache_key)
-
-            # Check cache first
-            cached_value = cache.get(cache_key)
-            if cached_value is not None:
-                logger.debug(f"Cache hit for key: {cache_key}")
-                return cached_value
-
-            # If not in cache, call function
-            logger.debug(f"Cache miss for key: {cache_key}")
-            result = await func(*args, **kwargs)
-
-            # Cache result
-            cache.set(cache_key, result, ttl)
-
-            return result
-
-        @wraps(func)
-        def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
-            # Generate cache key
-            if key_builder:
-                cache_key = key_builder(*args, **kwargs)
-            else:
-                func_prefix = f"{prefix}:{func.__module__}:{func.__name__}"
-                cache_key = generate_cache_key(func_prefix, *args, **kwargs)
-
-            cache_key = hash_cache_key(cache_key)
-
-            # Check cache first
-            cached_value = cache.get(cache_key)
-            if cached_value is not None:
-                logger.debug(f"Cache hit for key: {cache_key}")
-                return cached_value
-
-            # If not in cache, call function
-            logger.debug(f"Cache miss for key: {cache_key}")
-            result = func(*args, **kwargs)
-
-            # Cache result
-            cache.set(cache_key, result, ttl)
-
-            return result
-
-        # Check if the function is async or not
-        if hasattr(func, "__await__"):
-            return async_wrapper
-        return sync_wrapper
-
-    return decorator
 
 
 # Cache factory và initialization
 
 
-def get_cache(cache_type: str = "memory") -> Cache:
+def get_cache() -> Cache:
     """
     Factory function để get cache instance.
 
-    Args:
-        cache_type: Type của cache ('memory' hoặc 'redis')
-
     Returns:
-        Cache instance
-
-    Examples:
-        >>> memory_cache = get_cache("memory")
-        >>> isinstance(memory_cache, InMemoryCache)
-        True
+        InMemoryCache instance
     """
-    if cache_type.lower() == "redis":
-        try:
-            from redis import Redis
-
-            redis_host = "localhost"  # Can be loaded from config
-            redis_port = 6379
-            redis_client = Redis(host=redis_host, port=redis_port)
-            return RedisCache(redis_client)
-        except ImportError:
-            logger.warning(
-                "Redis package not installed, falling back to in-memory cache"
-            )
-            return InMemoryCache()
-    else:
-        return InMemoryCache()
+    return InMemoryCache()
 
 
 # Global cache instance
@@ -414,19 +155,81 @@ def clear_cache_by_prefix(prefix: str) -> None:
         >>> cache.get("other:1") is None
         False
     """
-    if isinstance(default_cache, RedisCache):
-        cursor = "0"
-        pattern = f"{default_cache.prefix}{prefix}*"
-
-        while cursor != 0:
-            cursor, keys = default_cache.redis.scan(
-                cursor=cursor, match=pattern
-            )
-            if keys:
-                default_cache.redis.delete(*keys)
-    elif isinstance(default_cache, InMemoryCache):
+    if isinstance(default_cache, InMemoryCache):
         keys_to_delete = [
             key for key in default_cache.cache.keys() if key.startswith(prefix)
         ]
         for key in keys_to_delete:
             default_cache.delete(key)
+
+
+# Cache decorators
+
+
+def cached(
+    ttl: int = 300,
+    prefix: str = "",
+    key_builder: Optional[Callable] = None,
+):
+    """
+    Decorator để cache function results.
+
+    Args:
+        ttl: Time to live (seconds)
+        prefix: Prefix cho cache key
+        key_builder: Function để build cache key từ function args/kwargs
+
+    Returns:
+        Decorated function
+
+    Examples:
+        >>> @cached(ttl=10)
+        ... def slow_function(a, b):
+        ...     return a + b
+    """
+
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            # Build key
+            if key_builder:
+                cache_key = key_builder(*args, **kwargs)
+            else:
+                # Default key từ function name và params
+                params = []
+                params.extend(
+                    str(arg)
+                    for arg in args
+                    if isinstance(arg, (str, int, float, bool))
+                )
+                params.extend(
+                    f"{k}:{v}"
+                    for k, v in kwargs.items()
+                    if isinstance(v, (str, int, float, bool))
+                )
+                serialized_params = ":".join(params)
+
+                # Hash serialized_params nếu quá dài
+                if len(serialized_params) > 100:
+                    serialized_params = hashlib.md5(
+                        serialized_params.encode()
+                    ).hexdigest()
+
+                cache_key = f"{prefix}{func.__name__}:{serialized_params}"
+
+            # Try to get from cache
+            cached_result = default_cache.get(cache_key)
+            if cached_result is not None:
+                logger.debug(f"Cache hit for {cache_key}")
+                return cached_result
+
+            logger.debug(f"Cache miss for {cache_key}")
+            # Execute function và cache result
+            result = await func(*args, **kwargs)
+            default_cache.set(cache_key, result, ttl)
+
+            return result
+
+        return wrapper
+
+    return decorator

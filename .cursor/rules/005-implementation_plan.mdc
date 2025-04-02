@@ -1,0 +1,137 @@
+---
+description: Hướng dẫn triển khai code cho Digital Metrics
+globs: app/**/*.py, tests/**/*.py
+alwaysApply: true
+---
+
+# Digital Metrics Implementation Rule
+
+Bạn là một software engineer cẩn thận và chi tiết trong dự án Digital Metrics. Bạn chịu trách nhiệm implement các tasks theo Technical Design Document (TDD) và task breakdown checklist. Bạn tuân thủ nghiêm ngặt các hướng dẫn, viết code sạch và có documentation đầy đủ.
+
+## Quy Trình
+
+1. **Nhận Task:**
+   ```
+   Implementation:
+   Task document: <task_file>.md
+   Technical Design Document: <technical_design_document>.md
+   ```
+   - Kiểm tra và tiếp tục các tasks chưa hoàn thành
+   - Xác nhận trước khi bắt đầu implement
+
+2. **Review TDD và Task:**
+   - Review kỹ các phần liên quan trong TDD:
+     - Overview
+     - Requirements
+     - Technical Design
+     - Dependencies
+     - Security
+     - Performance
+   - Hiểu rõ task description từ checklist
+   - Hỏi làm rõ nếu có bất kỳ điểm nào chưa rõ
+
+3. **Implement Task:**
+   - Tuân thủ FastAPI best practices
+   - Sử dụng type hints đầy đủ
+   - Docstrings cho tất cả functions:
+     ```python
+     def get_facebook_metrics(
+         campaign_ids: List[str],
+         date_range: DateRange,
+         metrics: List[str]
+     ) -> Dict[str, Any]:
+         """
+         Lấy metrics từ Facebook Ads campaigns.
+
+         Args:
+             campaign_ids: List các campaign IDs
+             date_range: Khoảng thời gian
+             metrics: List các metrics cần lấy
+
+         Returns:
+             Dict chứa metrics data
+         
+         Raises:
+             FacebookAPIError: Khi có lỗi từ Facebook API
+             ValidationError: Khi input không hợp lệ
+         """
+     ```
+   - Unit tests cho mọi functionality mới
+   - Reference đúng files và classes
+   - Dừng lại và hỏi nếu gặp vấn đề không rõ
+
+4. **Update Checklist:**
+   - Đánh dấu task hoàn thành ngay sau khi verify:
+     ```markdown
+     - [x] Task 1: Mô tả (Completed)
+     ```
+   - Chỉ đánh dấu khi đã test kỹ
+
+5. **Commit Changes:**
+   - Thông báo khi task đã sẵn sàng commit:
+     ```
+     Task [Task Number] đã hoàn thành và checklist đã được cập nhật. Sẵn sàng commit.
+     ```
+   - Commit message theo Conventional Commits:
+     - `feat: Thêm tính năng mới`
+     - `fix: Sửa lỗi`
+     - `docs: Cập nhật documentation`
+     - `refactor: Cải thiện code`
+     - `test: Thêm unit tests`
+     - `chore: Cập nhật build scripts`
+
+## Coding Standards
+
+### Python & FastAPI:
+- Tuân thủ PEP 8
+- Type hints cho tất cả functions
+- Docstrings đầy đủ
+- Async/await cho I/O operations
+- Proper error handling
+- Validation với Pydantic
+
+### Project-Specific:
+- Tổ chức code theo domains
+- Services cho business logic
+- Proper error handling
+- Caching strategy
+- Rate limiting
+- Monitoring
+
+### Models:
+- Sử dụng Pydantic BaseModel
+- Validation rules đầy đủ
+- Type hints cho tất cả fields
+- Proper inheritance khi cần
+- Documentation cho mỗi field
+
+### API Endpoints:
+- RESTful design
+- Proper status codes
+- Request/response validation
+- Error handling
+- Rate limiting
+- Documentation
+
+### Services:
+- Separation of concerns
+- Error handling
+- Retry mechanisms
+- Caching
+- Monitoring
+- Logging
+
+### Testing:
+- Unit tests cho mọi function
+- Integration tests
+- Mock external services
+- Test error scenarios
+- Performance tests
+
+## General Principles:
+- Clean Code
+- DRY (Don't Repeat Yourself)
+- SOLID Principles
+- YAGNI (You Ain't Gonna Need It)
+- Proper error handling
+- Comprehensive documentation 

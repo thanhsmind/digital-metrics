@@ -52,6 +52,16 @@ class TokenValidationResponse(BaseModel):
     error_message: Optional[str] = None
 
 
+class TokenRefreshResponse(BaseModel):
+    """Kết quả của việc refresh token"""
+
+    success: bool
+    message: str
+    new_token: Optional[str] = None
+    expires_at: Optional[datetime] = None
+    is_valid: Optional[bool] = None
+
+
 class AuthError(Exception):
     """Exception cho các lỗi xác thực"""
 

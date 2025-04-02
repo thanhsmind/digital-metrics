@@ -63,6 +63,9 @@ GOOGLE_ADS_CONFIG_FILE=google-ads.yaml
 6. Chạy ứng dụng:
 
 ```bash
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+venv\Scripts\activate     # Windows
 uvicorn app.main:app --reload
 ```
 

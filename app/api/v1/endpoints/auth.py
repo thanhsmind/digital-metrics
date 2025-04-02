@@ -15,11 +15,13 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from app.models.auth import (
     FacebookPageToken,
     FacebookUserToken,
+    TokenRefreshResponse,
     TokenValidationResponse,
 )
 from app.services.facebook.auth_service import AuthError, FacebookAuthService
 from app.services.facebook.token_manager import TokenManager
 from app.tasks.token_refresh import TokenRefreshTask
+from app.utils.auth import internal_api_key_auth
 
 router = APIRouter()
 facebook_auth_service = FacebookAuthService()
@@ -141,7 +143,7 @@ async def get_user_pages(
         )
 
 
-@router.post("/facebook/refresh", response_model=Dict[str, Any])
+@router.post("/facebook/refresh", response_model=TokenRefreshResponse)
 async def refresh_facebook_token(
     token: str = Query(..., description="Facebook token to refresh")
 ):
@@ -152,7 +154,7 @@ async def refresh_facebook_token(
         token: Facebook access token to refresh
 
     Returns:
-        New token information
+        TokenRefreshResponse với thông tin về token mới
     """
     try:
         # Kiểm tra cấu hình Facebook API
@@ -167,16 +169,19 @@ async def refresh_facebook_token(
 
         new_token = await facebook_auth_service.refresh_token(token)
         if not new_token:
-            return {"success": False, "message": "Token could not be refreshed"}
+            return TokenRefreshResponse(
+                success=False, message="Token could not be refreshed"
+            )
 
         # Validate new token
         validation = await facebook_auth_service.validate_token(new_token)
-        return {
-            "success": True,
-            "new_token": new_token,
-            "expires_at": validation.expires_at,
-            "is_valid": validation.is_valid,
-        }
+        return TokenRefreshResponse(
+            success=True,
+            message="Token refreshed successfully",
+            new_token=new_token,
+            expires_at=validation.expires_at,
+            is_valid=validation.is_valid,
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -235,4 +240,162 @@ async def force_refresh_facebook_token(background_tasks: BackgroundTasks):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error refreshing token: {str(e)}",
+        )
+
+
+@router.post("/facebook/encrypt-tokens", response_model=Dict[str, Any])
+async def encrypt_facebook_tokens():
+    """
+    Mã hóa tất cả token Facebook đã lưu trữ
+
+    Hữu ích khi migrate từ hệ thống không mã hóa sang có mã hóa
+
+    Returns:
+        Thống kê số lượng token đã mã hóa
+    """
+    try:
+        # Đếm số lượng token đã mã hóa
+        encrypted_count = 0
+        total_count = 0
+
+        # Kiểm tra token chính
+        current_token = await token_manager.load_token()
+        if current_token:
+            total_count += 1
+            # Tải thông tin token hiện tại
+            validation = await facebook_auth_service.validate_token(
+                current_token
+            )
+
+            # Mã hóa và lưu token
+            await token_manager.save_token(
+                current_token,
+                {
+                    "expires_at": (
+                        validation.expires_at.isoformat()
+                        if validation.expires_at
+                        else None
+                    ),
+                    "user_id": validation.user_id,
+                    "scopes": validation.scopes,
+                },
+            )
+            encrypted_count += 1
+
+        # Tải tokens từ file
+        if not hasattr(facebook_auth_service, "tokens_data"):
+            facebook_auth_service._load_tokens()
+
+        # Mã hóa user tokens
+        if "user_tokens" in facebook_auth_service.tokens_data:
+            for user_id, token_data in list(
+                facebook_auth_service.tokens_data["user_tokens"].items()
+            ):
+                # Kiểm tra xem token đã mã hóa chưa
+                if (
+                    isinstance(token_data, dict)
+                    and "encrypted" in token_data
+                    and token_data["encrypted"]
+                ):
+                    continue
+
+                # Lấy user token
+                user_token = await facebook_auth_service._get_user_token(
+                    user_id
+                )
+                if user_token:
+                    total_count += 1
+                    # Lưu lại với mã hóa
+                    await facebook_auth_service._store_user_token(user_token)
+                    encrypted_count += 1
+
+        # Mã hóa page tokens
+        if "page_tokens" in facebook_auth_service.tokens_data:
+            for page_id, token_data in list(
+                facebook_auth_service.tokens_data["page_tokens"].items()
+            ):
+                # Kiểm tra xem token đã mã hóa chưa
+                if (
+                    isinstance(token_data, dict)
+                    and "encrypted" in token_data
+                    and token_data["encrypted"]
+                ):
+                    continue
+
+                # Lấy page token
+                page_token = await facebook_auth_service._get_page_token(
+                    page_id
+                )
+                if page_token:
+                    total_count += 1
+                    # Lưu lại với mã hóa
+                    await facebook_auth_service._store_page_token(page_token)
+                    encrypted_count += 1
+
+        return {
+            "success": True,
+            "message": f"Encrypted {encrypted_count} of {total_count} tokens",
+            "encrypted_count": encrypted_count,
+            "total_count": total_count,
+        }
+    except Exception as e:
+        logging.error(f"Error encrypting tokens: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error encrypting tokens: {str(e)}",
+        )
+
+
+@router.post(
+    "/facebook/internal/scheduled-refresh", response_model=Dict[str, Any]
+)
+async def scheduled_refresh(
+    hours_threshold: int = Query(
+        24, description="Số giờ trước khi token hết hạn cần refresh"
+    ),
+    api_key: str = Depends(internal_api_key_auth),
+):
+    """
+    Endpoint nội bộ được gọi bởi scheduler để refresh tất cả Facebook tokens sắp hết hạn.
+    Endpoint này được bảo vệ bởi API key nội bộ.
+
+    Args:
+        hours_threshold: Số giờ trước khi token hết hạn sẽ được refresh
+        api_key: API key cho internal endpoints
+
+    Returns:
+        Danh sách kết quả refresh cho mỗi token
+    """
+    try:
+        # Kiểm tra cấu hình Facebook API
+        if (
+            not facebook_auth_service.app_id
+            or not facebook_auth_service.app_secret
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Facebook API credentials are not properly configured",
+            )
+
+        # Gọi token manager để refresh tokens sắp hết hạn
+        results = await token_manager.refresh_expiring_tokens(hours_threshold)
+
+        # Tính toán thống kê
+        success_count = sum(1 for r in results if r.get("success", False))
+        error_count = len(results) - success_count
+
+        # Trả về kết quả
+        return {
+            "success": success_count > 0,
+            "message": f"Refreshed {success_count} tokens, {error_count} errors",
+            "total_tokens": len(results),
+            "success_count": success_count,
+            "error_count": error_count,
+            "results": results,
+        }
+    except Exception as e:
+        logging.error(f"Error in scheduled refresh: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error during scheduled refresh: {str(e)}",
         )

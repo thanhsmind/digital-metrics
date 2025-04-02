@@ -2,7 +2,7 @@
   "commands": [
     {
       "name": "Khởi động API",
-      "command": "powershell -Command \"& { . .\\venv\\Scripts\\Activate.ps1; uvicorn app.main:app --reload }\"",
+      "command": "powershell -Command \"& { . .\\venv\\Scripts\\Activate.ps1; uvicorn app.main:src --reload }\"",
       "cwd": "${workspaceFolder}"
     },
     {

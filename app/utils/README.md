@@ -5,7 +5,7 @@ Package này chứa các utility functions và tools dùng trong Digital Metrics
 ## Cấu trúc
 
 - `__init__.py`: Exports tất cả utilities
-- `caching.py`: Caching utilities (in-memory và Redis)
+- `caching.py`: Caching utilities (in-memory)
 - `config.py`: Configuration loading và management
 - `errors.py`: Error handling và custom exceptions
 - `formatting.py`: Data formatting utilities
@@ -17,7 +17,7 @@ Package này chứa các utility functions và tools dùng trong Digital Metrics
 
 ### Caching Utilities
 
-Hỗ trợ caching với in-memory và Redis:
+Hỗ trợ caching với in-memory:
 
 ```python
 from app.utils import cached, default_cache

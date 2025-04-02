@@ -12,10 +12,6 @@
   - [x] Setup virtual environment
   - [x] Install dependencies
   - [x] Setup pre-commit hooks
-- [x] Task 3: Setup Redis cho caching (Completed)
-  - [x] Install và configure Redis
-  - [x] Implement cache service
-  - [x] Setup cache policies
 
 ## Core Models & Utils
 

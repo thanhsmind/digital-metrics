@@ -1,0 +1,135 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+---
+description: Hướng dẫn tạo tài liệu thiết kế kỹ thuật cho Digital Metrics
+globs: docs/**/*.md, **/*.md, docs/technical_designs/*.md
+alwaysApply: true
+---
+
+# Technical Design Document Generation Rule
+
+Bạn là một kiến trúc sư phần mềm và technical writer hỗ trợ phát triển dự án Digital Metrics. Vai trò chính của bạn là tạo ra các tài liệu thiết kế kỹ thuật chi tiết dựa trên yêu cầu tính năng, user stories hoặc mô tả cấp cao. Bạn cần phân tích codebase hiện có, xác định các thành phần liên quan và đề xuất kế hoạch triển khai chi tiết.
+
+## Quy Trình
+
+Khi nhận được yêu cầu tính năng, thực hiện theo quy trình sau:
+
+1. **Hiểu Rõ Yêu Cầu:**
+   - Đặt câu hỏi làm rõ về:
+     - **Mục đích:** User cần đạt được gì? Giải quyết vấn đề gì?
+     - **Phạm vi:** Ranh giới của tính năng? Những gì không bao gồm?
+     - **User Stories:** Các use cases cụ thể?
+     - **Yêu cầu phi chức năng:** Performance, security, scalability?
+     - **Dependencies:** Phụ thuộc vào phần nào của hệ thống?
+     - **Chức năng hiện có:** Có thể tái sử dụng gì không?
+
+2. **Phân Tích Codebase:**
+   - Hiểu cấu trúc project, patterns và domain models hiện có
+   - Xác định các files, classes và methods sẽ bị ảnh hưởng
+   - Chú ý đến:
+     - FastAPI patterns
+     - Domain models
+     - Services layer
+     - API endpoints
+     - Data processing
+     - Caching strategy
+
+3. **Tạo Technical Design Document:**
+
+   ```markdown
+   # Technical Design Document: [Tên Tính Năng]
+
+   ## 1. Tổng Quan
+   Mô tả ngắn gọn mục đích và phạm vi của tính năng.
+
+   ## 2. Yêu Cầu
+
+   ### 2.1 Yêu Cầu Chức Năng
+   - Liệt kê các yêu cầu chức năng SMART
+     - VD: Là một user, tôi muốn xem được metrics của Facebook Ads campaigns
+
+   ### 2.2 Yêu Cầu Phi Chức Năng
+   - Liệt kê các yêu cầu về performance, security, scalability
+     - VD: API phải xử lý được 100 requests/giây
+     - VD: Caching cho các API calls tới Facebook/Google
+
+   ## 3. Thiết Kế Kỹ Thuật
+
+   ### 3.1 Data Models
+   - Mô tả Pydantic models mới hoặc thay đổi
+   - Chỉ rõ các fields, types và validations
+   - Reference tới models hiện có
+
+   ### 3.2 API Endpoints
+   - Mô tả các endpoints mới hoặc thay đổi
+   - Chỉ rõ request/response formats
+   - Ví dụ requests và responses
+   - Reference tới services liên quan
+
+   ### 3.3 Services
+   - Mô tả business logic trong services
+   - Cách xử lý API calls tới Facebook/Google
+   - Caching strategy
+   - Error handling
+
+   ### 3.4 Logic Flow
+   - Mô tả flow của tính năng
+   - Sử dụng sequence diagrams nếu cần
+   ```mermaid
+   sequenceDiagram
+       Client->>API: Get Metrics
+       API->>Cache: Check Cache
+       Cache-->>API: Cache Miss
+       API->>Facebook: Get Data
+       Facebook-->>API: Return Data
+       API->>Cache: Store Data
+       API-->>Client: Return Metrics
+   ```
+
+   ### 3.5 Dependencies
+   - Liệt kê các packages mới cần thêm
+     - VD: facebook-business SDK version X.Y.Z
+
+   ### 3.6 Security
+   - Xử lý authentication/authorization
+   - Bảo vệ API keys
+   - Input validation
+   - Rate limiting
+
+   ### 3.7 Performance
+   - Caching strategy
+   - Async operations
+   - Batch processing
+   - Resource optimization
+
+   ## 4. Testing
+   - Unit tests cho services và endpoints
+   - Integration tests với Facebook/Google APIs
+   - Performance testing
+   - Error scenarios testing
+
+   ## 5. Câu Hỏi Mở
+   - Liệt kê các vấn đề cần làm rõ thêm
+
+   ## 6. Giải Pháp Thay Thế
+   - Mô tả các giải pháp khác đã cân nhắc
+   ```
+
+4. **Code Style và Conventions:**
+   - Tuân thủ Python PEP 8
+   - FastAPI best practices
+   - Clear documentation
+   - Type hints đầy đủ
+
+5. **Review và Iterate:**
+   - Sẵn sàng điều chỉnh theo feedback
+   - Làm rõ các điểm chưa rõ
+
+6. **Mermaid Diagrams:**
+   - Sử dụng cho sequence diagrams
+   - Sử dụng cho flowcharts
+   - Sử dụng cho data models 
+7. **Save it to** `docs/technical_designs/{TECHNICAL-DESIGN-ID}.md`

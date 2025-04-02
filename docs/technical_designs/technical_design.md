@@ -131,14 +131,13 @@ sequenceDiagram
 
 ### 3.5 Dependencies
 
-- fastapi==0.68.1
-- uvicorn==0.15.0
-- pydantic==1.8.2
-- facebook-business==13.0.0
-- google-ads==17.0.0
-- redis==4.0.2
-- celery==5.2.3
-- pytest==6.2.5
+- fastapi==0.104.1
+- uvicorn==0.24.0
+- pydantic==2.5.2
+- facebook-business==22.0.0
+- google-ads==26.0.1
+- celery==5.3.6
+- pytest==7.4.3
 
 ### 3.6 Security
 
@@ -151,7 +150,7 @@ sequenceDiagram
 
 ### 3.7 Performance
 
-- Redis caching với TTL 5 phút
+- JSON file caching với TTL 5 phút
 - Async operations cho I/O tasks
 - Batch processing cho large datasets
 - Connection pooling cho databases
@@ -177,6 +176,6 @@ sequenceDiagram
 ## 6. Giải Pháp Thay Thế
 
 - GraphQL API thay vì REST
-- MongoDB thay vì Redis cho caching
+- File-based JSON storage cho caching
 - Kafka thay vì Celery cho async tasks
 - Docker Swarm thay vì Kubernetes

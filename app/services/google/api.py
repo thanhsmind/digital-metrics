@@ -1,4 +1,7 @@
+import json
 import logging
+import os
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from google.ads.googleads.client import GoogleAdsClient
@@ -12,12 +15,112 @@ from app.core.constants import (
     GOOGLE_ADS_METRICS,
 )
 from app.models.google import AdGroupInsight, AdInsight, CampaignInsight
+from app.utils.encryption import TokenEncryption
 
 
 class GoogleAdsManager:
     def __init__(self):
         self.client = None
+        self.token_file = settings.GOOGLE_TOKEN_FILE
+        self.tokens_data = {"client_tokens": {}}
+        # Đảm bảo thư mục tồn tại
+        self._ensure_token_dir_exists()
+        self._load_tokens()
         self.init_client()
+
+    def _ensure_token_dir_exists(self):
+        """Đảm bảo thư mục lưu trữ token tồn tại"""
+        os.makedirs(os.path.dirname(self.token_file), exist_ok=True)
+
+    def _load_tokens(self):
+        """Tải tokens từ file JSON"""
+        try:
+            if os.path.exists(self.token_file):
+                with open(self.token_file, "r") as f:
+                    self.tokens_data = json.load(f)
+                logging.info(f"Loaded tokens from {self.token_file}")
+            else:
+                self.tokens_data = {"client_tokens": {}}
+                logging.info(
+                    f"No token file found at {self.token_file}, created new token store"
+                )
+        except Exception as e:
+            logging.error(f"Error loading tokens from file: {str(e)}")
+            self.tokens_data = {"client_tokens": {}}
+
+    def _save_tokens(self):
+        """Lưu tokens vào file JSON"""
+        try:
+            with open(self.token_file, "w") as f:
+                json.dump(self.tokens_data, f, indent=2)
+            logging.info(f"Saved tokens to {self.token_file}")
+            return True
+        except Exception as e:
+            logging.error(f"Error saving tokens to file: {str(e)}")
+            return False
+
+    def store_client_token(self, client_id: str, token_data: Dict[str, Any]):
+        """Lưu token cho client vào storage"""
+        try:
+            # Mã hóa token trước khi lưu
+            token_json = json.dumps(token_data)
+            encrypted_token = TokenEncryption.encrypt_token(token_json)
+
+            if not encrypted_token:
+                logging.error(
+                    "Failed to encrypt token, storing without encryption"
+                )
+                client_data = {"encrypted": False, "data": token_data}
+            else:
+                client_data = {"encrypted": True, "token": encrypted_token}
+
+            # Thêm timestamp
+            client_data["updated_at"] = datetime.now().isoformat()
+
+            # Lưu vào dictionary
+            self.tokens_data["client_tokens"][client_id] = client_data
+
+            # Lưu vào file
+            self._save_tokens()
+            return True
+        except Exception as e:
+            logging.error(f"Error storing client token: {str(e)}")
+            return False
+
+    def get_client_token(self, client_id: str) -> Optional[Dict[str, Any]]:
+        """Lấy token cho client từ storage"""
+        try:
+            if (
+                "client_tokens" not in self.tokens_data
+                or client_id not in self.tokens_data["client_tokens"]
+            ):
+                return None
+
+            token_data = self.tokens_data["client_tokens"][client_id]
+
+            # Kiểm tra xem token có mã hóa không
+            if token_data.get("encrypted", False):
+                encrypted_token = token_data.get("token")
+                if not encrypted_token:
+                    logging.error(
+                        f"Encrypted token for client {client_id} not found"
+                    )
+                    return None
+
+                decrypted_data = TokenEncryption.decrypt_token(encrypted_token)
+                if not decrypted_data:
+                    logging.error(
+                        f"Failed to decrypt token for client {client_id}"
+                    )
+                    return None
+
+                return json.loads(decrypted_data)
+            else:
+                # Token lưu dưới dạng raw dict
+                return token_data.get("data", {})
+        except Exception as e:
+            logging.error(f"Error retrieving client token: {str(e)}")
+            return None
 
     def init_client(self):
         """Initialize Google Ads API client"""

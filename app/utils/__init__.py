@@ -1,18 +1,10 @@
 """Utils package cho Digital Metrics API."""
 
-from app.utils.caching import (
-    Cache,
-    InMemoryCache,
-    RedisCache,
-    cached,
-    default_cache,
-    get_cache,
-)
+from app.utils.caching import Cache, InMemoryCache, cached, get_cache
 from app.utils.config import get_config, load_app_config
 from app.utils.errors import (
     APIError,
     AuthenticationError,
-    ConfigError,
     NotFoundError,
     ValidationError,
     add_exception_handlers,

@@ -42,6 +42,16 @@ class FacebookApiManager:
             logging.error(f"Failed to initialize Facebook API: {str(e)}")
             raise
 
+    def update_access_token(self, new_token: str):
+        """Update the access token and reinitialize the API"""
+        try:
+            self.access_token = new_token
+            self.init_api()
+            logging.info("Facebook API reinitialized with the new access token")
+        except Exception as e:
+            logging.error(f"Failed to update access token: {str(e)}")
+            raise
+
     async def get_business_post_insights(
         self,
         business_id: str,

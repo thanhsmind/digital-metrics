@@ -1,10 +1,10 @@
 ---
 description: 
 globs: 
-alwaysApply: true
+alwaysApply: false
 ---
 ---
-description:
+description: Claude Sonnet agent behavior fix
 globs:
 alwaysApply: true
 ---
