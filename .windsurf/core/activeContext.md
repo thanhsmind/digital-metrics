@@ -1,11 +1,18 @@
 # Active Context
 
-**Context:** Current work focus and state.
+**Context:** Đang tập trung cập nhật Memory Bank.
+**Decision:** Ưu tiên cập nhật Memory Bank.
+**Alternatives:**
 
-**Decision:** SessionStart workflow executed, memory bank initialized.
+**Consequences:** Đảm bảo chất lượng, dễ bảo trì, và sẵn sàng mở rộng khi cần.
+**Status:** Đang cập nhật Memory Bank (2025-04-28).
 
-**Alternatives:** None at initialization.
+## Current Task
 
-**Consequences:** Working memory is now active for this session.
+- **Update Windsurf Memory Bank:** Analyzing the current codebase (`digital-metrics`) to populate and update the core memory files (`projectbrief.md`, `techContext.md`, `systemPatterns.md`, `progress.md`).
 
-**Status:** Initialized 2025-04-28.
+## Next Steps
+
+- Finalize Memory Bank updates.
+- Create a task log for this operation.
+- Await further instructions.
