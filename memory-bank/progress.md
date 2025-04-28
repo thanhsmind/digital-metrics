@@ -20,6 +20,11 @@ Project is in initial development phase with core structure established, API end
 - Post metrics endpoints
 - Reel metrics endpoints
 - JSON file-based caching system for metrics
+- Enhanced token management for Facebook API:
+  - Business token storage and retrieval
+  - Token permission checking
+  - Automatic token refresh
+  - Token expiry handling during requests
 
 ## What's Next
 
@@ -60,6 +65,19 @@ Project is in initial development phase with core structure established, API end
 
 ## Completed Tasks
 
+- [x] Facebook Token Management Enhancement (Core Components) - Completed on 2024-04-02
+  - Models: FacebookBusinessToken, TokenPermissionCheckResponse
+  - Services: Extended TokenManager and FacebookAuthService
+  - Middleware: TokenMiddleware for auto token refresh
+- [x] Facebook Token Management API Endpoints - Completed on 2024-04-03
+  - New endpoints: business-token, extend-permissions, check-permissions
+  - Updated existing endpoints to use token management
+  - Enhanced error handling for token-related issues
+- [x] Token Expiry Handling Implementation - Completed on 2024-04-03, see [archive entry](../docs/archive/completed_tasks.md#task-token-expiry-handling-implementation-v10)
+  - Updated Insights endpoints for automatic token expiry handling
+  - Added TokenMiddleware integration for token refresh during requests
+  - Implemented fallback token retrieval mechanisms
+- [x] Facebook Token Encryption Implementation - Completed on 2024-04-03, see [archive entry](../docs/archive/completed_tasks.md#task-facebook-token-encryption-implementation-v10)
 - [x] Replace Redis with JSON file-based caching - Completed on 2024-03-31, see [archive entry](../docs/archive/completed_tasks.md#task-replace-redis-with-json-file-based-cache-v10)
 - [x] Fix virtual environment setup - Completed on 2024-03-31, see [archive entry](../docs/archive/completed_tasks.md#task-fix-virtual-environment-setup-v10)
 - [x] Set up project structure
@@ -70,6 +88,7 @@ Project is in initial development phase with core structure established, API end
 - [x] Analyze and document integrations
 - [x] API Startup Errors Fix - Completed on 2024-03-31, see [archive entry](../docs/archive/completed_tasks.md#task-fix-api-startup-errors-v10)
 - [x] ConfigError Fix - Completed on 2024-03-31, see [archive entry](../docs/archive/completed_tasks.md#task-fix-configerror-import-issue-v10)
+- [x] Invalid JWE Import Fix - Completed on 2024-04-03, see [archive entry](../docs/archive/completed_tasks.md#task-fix-invalid-jwe-import-v10)
 
 ## Challenges & Solutions
 
@@ -81,6 +100,11 @@ Project is in initial development phase with core structure established, API end
 
 ### Current Work
 
+- **FacebookBusinessToken Model:** Completed (2024-04-02) -> See Token Management Enhancements in activeContext.md
+- **TokenPermissionCheckResponse Model:** Completed (2024-04-02) -> See Token Management Enhancements in activeContext.md
+- **TokenManager Extension:** Completed (2024-04-02) -> See Token Management Enhancements in activeContext.md
+- **FacebookAuthService Extension:** Completed (2024-04-02) -> See Token Management Enhancements in activeContext.md
+- **TokenMiddleware Implementation:** Completed (2024-04-02) -> See Token Management Enhancements in activeContext.md
 - **DateRange Model:** Completed (YYYY-MM-DD) -> See Implementation Notes in activeContext.md
 - **AdsInsight Model:** Completed (YYYY-MM-DD) -> See Implementation Notes in activeContext.md
 - **FacebookCampaignMetricsRequest Model:** Completed (YYYY-MM-DD) -> See Implementation Notes in activeContext.md
@@ -95,3 +119,16 @@ Project is in initial development phase with core structure established, API end
 - **API Endpoint /post_metrics_csv:** Completed (YYYY-MM-DD) -> See Implementation Notes in activeContext.md
 - **API Endpoint /reel_metrics_csv:** Completed (YYYY-MM-DD) -> See Implementation Notes in activeContext.md
 - **API Endpoint /available_metrics:** Completed (YYYY-MM-DD) -> See Implementation Notes in activeContext.md
+
+## In-Progress Tasks
+
+- **Tasks A1-A4: Multiple Dashboard Support**
+
+  - [x] A1: Thiết kế data model cho multiple dashboard
+  - [ ] A2: Implement backend endpoints cho multiple dashboard
+  - [ ] A3: Cập nhật cơ chế token management
+  - [ ] A4: Update dashboard switching UI
+
+- **Tasks SE1-SE2: Security Enhancements**
+  - [x] SE1: Triển khai mã hóa token trong kho lưu trữ
+  - [ ] SE2: Kiểm soát truy cập dựa trên phạm vi token

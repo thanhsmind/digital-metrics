@@ -2,7 +2,7 @@ import asyncio
 import json
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
 from facebook_business.adobjects.adaccount import AdAccount
@@ -10,11 +10,13 @@ from facebook_business.adobjects.adsinsights import AdsInsights
 from facebook_business.adobjects.business import Business
 from facebook_business.adobjects.page import Page
 from facebook_business.adobjects.pagepost import PagePost
-from facebook_business.adobjects.video import Video
+
+# Comment out the problematic import temporarily
+# from facebook_business.adobjects.video import Video
 from facebook_business.api import FacebookAdsApi
 from facebook_business.exceptions import FacebookRequestError
 
-from app.config import settings
+from app.core.config import settings
 from app.models.common import DateRange
 from app.models.facebook import (
     AdsInsight,
@@ -25,13 +27,43 @@ from app.models.facebook import (
     VideoInsight,
 )
 from app.services.cache_service import CacheService
-from app.utils.encryption import decrypt_data
+from app.utils.encryption import TokenEncryption
 from app.utils.error_handler import FacebookErrorHandler
 from app.utils.helpers import generate_cache_key
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_CACHE_TTL = 3600  # 1 hour
+
+
+# Temporary Video class replacement
+class Video:
+    """Temporary replacement for facebook_business.adobjects.video.Video"""
+
+    class Field:
+        """Field definitions for Video object"""
+
+        id = "id"
+        title = "title"
+        description = "description"
+        created_time = "created_time"
+
+    def __init__(self, fbid, api=None):
+        """Initialize Video object"""
+        self.fbid = fbid
+        self.api = api
+
+    def get_insights(self, fields=None, params=None):
+        """Get insights for this video"""
+        if not fields:
+            fields = []
+        if not params:
+            params = {}
+
+        path = f"{self.fbid}/insights"
+        if self.api:
+            return self.api.call("GET", path, params=params, fields=fields)
+        return []
 
 
 class FacebookAdsService:
@@ -59,12 +91,15 @@ class FacebookAdsService:
         # )
         self.cache_service = cache_service
         self.error_handler = FacebookErrorHandler()
+        self.default_token = (
+            None  # Default token được set thông qua dependency injection
+        )
         logger.info("FacebookAdsService initialized.")
 
     async def _get_api_instance(self, access_token: str) -> FacebookAdsApi:
         """Initializes the FacebookAdsApi instance with a specific user token."""
-        # Decrypt token if necessary (assuming tokens are stored encrypted)
-        # decrypted_token = decrypt_data(access_token)
+        # Decrypt token if necessary (using TokenEncryption)
+        # decrypted_token = TokenEncryption.decrypt_token(access_token)
         decrypted_token = access_token  # Placeholder if not encrypted
         return FacebookAdsApi.init(
             app_id=settings.FACEBOOK_APP_ID,
@@ -72,6 +107,20 @@ class FacebookAdsService:
             access_token=decrypted_token,
             api_version=settings.FACEBOOK_API_VERSION,
         )
+
+    def update_access_token(self, access_token: str) -> None:
+        """
+        Updates the access token used by the service for API calls.
+
+        Args:
+            access_token: The Facebook access token to use for API calls
+        """
+        logger.debug("Updating service access token")
+        if access_token:
+            # If token is encrypted, it will be decrypted when used in _get_api_instance
+            self.default_token = access_token
+        else:
+            logger.warning("Attempted to set empty access token, ignoring")
 
     async def get_campaign_insights(
         self,
@@ -690,37 +739,37 @@ class FacebookAdsService:
         business_id: str,
         metrics: List[str],
         date_range: DateRange,
-        access_token: str,
+        access_token: Optional[str] = None,
     ) -> List[PostInsight]:
         """
-        Fetches post insights for all pages associated with a Facebook Business.
-
-        Retrieves a list of pages owned by or assigned to the business, then
-        concurrently fetches post insights for each page within the specified
-        date range using the existing get_post_insights method.
-        Caches the list of business pages.
+        Fetches post insights for all pages of a Facebook Business.
 
         Args:
             business_id: The ID of the Facebook Business Manager.
-            metrics: A list of post metrics to retrieve (e.g., ['impressions', 'reach']).
-            date_range: The start and end date for fetching posts.
-            access_token: A user access token with business_management and pages_read_engagement permissions.
+            metrics: List of metrics to retrieve.
+            date_range: The start and end date.
+            access_token: Token with business_management, pages_read_engagement (nếu không cung cấp, sẽ sử dụng default_token).
 
         Returns:
-            A list of PostInsight objects aggregated from all pages.
+            A list of PostInsight objects.
 
         Raises:
-            ApplicationError: If fetching pages or insights fails.
+            ApplicationError: If getting insights fails.
         """
         logger.info(
-            f"Fetching business post insights for Business ID: {business_id}, "
-            f"Metrics: {metrics}"
+            f"Fetching post insights for Business ID: {business_id}, Metrics: {metrics}"
         )
-        all_post_insights: List[PostInsight] = []
+
+        # Sử dụng default_token nếu access_token không được cung cấp
+        token = access_token or self.default_token
+        if not token:
+            raise ValueError(
+                "No access token provided and no default token set"
+            )
 
         try:
-            # 1. Initialize API
-            api = await self._get_api_instance(access_token)
+            # 1. Initialize API with the token
+            api = await self._get_api_instance(token)
 
             # 2. Fetch Business Pages using helper
             page_ids = await self._get_business_page_ids(business_id, api)
@@ -745,7 +794,7 @@ class FacebookAdsService:
                             page_id=page_id,
                             metrics=metrics,
                             date_range=date_range,
-                            access_token=access_token,
+                            access_token=token,
                         )
                     )
                     tasks.append(post_task)
@@ -759,7 +808,7 @@ class FacebookAdsService:
                             page_id=page_id,
                             metrics=metrics,
                             date_range=date_range,
-                            access_token=access_token,
+                            access_token=token,
                         )
                     )
                     tasks.append(reel_task)
@@ -802,14 +851,14 @@ class FacebookAdsService:
             logger.exception(
                 f"Facebook API error fetching business post insights for {business_id}: {e.api_error_message()}"
             )
-            raise await self.error_handler.handle_error(
+            raise self.error_handler.handle_error(
                 e, f"Failed to fetch business post insights for {business_id}"
             )
         except Exception as e:
             logger.exception(
                 f"Unexpected error fetching business post insights for {business_id}: {e}"
             )
-            raise await self.error_handler.handle_error(
+            raise self.error_handler.handle_error(
                 e, f"Failed fetching business post insights for {business_id}"
             )
 
@@ -824,10 +873,8 @@ class FacebookAdsService:
         post_metrics: List[str],
         reel_metrics: List[str],
         date_range: DateRange,
-        access_token: str,
-    ) -> tuple[
-        List[PostInsight], List[VideoInsight]
-    ]:  # Use tuple for Python 3.9+
+        access_token: Optional[str] = None,
+    ) -> Tuple[List[PostInsight], List[VideoInsight]]:
         """
         Fetches both post and reel insights for all pages of a Facebook Business.
 
@@ -839,7 +886,7 @@ class FacebookAdsService:
             post_metrics: Metrics list for regular posts.
             reel_metrics: Metrics list for reels.
             date_range: The start and end date.
-            access_token: Token with business_management, pages_read_engagement.
+            access_token: Token with business_management, pages_read_engagement (nếu không cung cấp, sẽ sử dụng default_token).
 
         Returns:
             A tuple containing two lists: (all_post_insights, all_reel_insights).
@@ -853,9 +900,16 @@ class FacebookAdsService:
         all_post_insights: List[PostInsight] = []
         all_reel_insights: List[VideoInsight] = []
 
+        # Sử dụng default_token nếu access_token không được cung cấp
+        token = access_token or self.default_token
+        if not token:
+            raise ValueError(
+                "No access token provided and no default token set"
+            )
+
         try:
             # 1. Initialize API
-            api = await self._get_api_instance(access_token)
+            api = await self._get_api_instance(token)
 
             # 2. Fetch Business Pages using helper
             page_ids = await self._get_business_page_ids(business_id, api)
@@ -880,7 +934,7 @@ class FacebookAdsService:
                             page_id=page_id,
                             metrics=post_metrics,
                             date_range=date_range,
-                            access_token=access_token,
+                            access_token=token,
                         )
                     )
                     tasks.append(post_task)
@@ -894,7 +948,7 @@ class FacebookAdsService:
                             page_id=page_id,
                             metrics=reel_metrics,
                             date_range=date_range,
-                            access_token=access_token,
+                            access_token=token,
                         )
                     )
                     tasks.append(reel_task)
@@ -937,14 +991,14 @@ class FacebookAdsService:
             logger.exception(
                 f"Facebook API error fetching combined insights for {business_id}: {e.api_error_message()}"
             )
-            raise await self.error_handler.handle_error(
+            raise self.error_handler.handle_error(
                 e, f"Failed fetching combined insights for {business_id}"
             )
         except Exception as e:
             logger.exception(
                 f"Unexpected error fetching combined insights for {business_id}: {e}"
             )
-            raise await self.error_handler.handle_error(
+            raise self.error_handler.handle_error(
                 e, f"Failed fetching combined insights for {business_id}"
             )
 

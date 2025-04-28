@@ -7,6 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.api import api_router
 from app.core.config import settings
+from app.middleware.token_middleware import TokenMiddleware
+from app.middleware.token_refresh import TokenRefreshMiddleware
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -22,6 +24,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Middleware xử lý token hết hạn và tự động làm mới token
+app.add_middleware(TokenMiddleware)
+
+# Middleware định kỳ refresh token
+app.add_middleware(TokenRefreshMiddleware)
 
 # Đăng ký API routes
 app.include_router(api_router, prefix=settings.API_V1_STR)

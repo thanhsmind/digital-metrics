@@ -1,0 +1,1 @@
+You need to initialize your Memory Bank with the "Windsurf Memory System"

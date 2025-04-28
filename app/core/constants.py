@@ -184,6 +184,14 @@ AVAILABLE_POST_METRICS: list[str] = sorted(
     ]
 )
 
+DEFAULT_POST_METRICS: list[str] = [
+    "post_impressions",
+    "post_impressions_unique",
+    "post_engaged_users",
+    "post_reactions_like_total",
+    "post_clicks",
+]
+
 AVAILABLE_REEL_METRICS: list[str] = sorted(
     [
         "total_video_views",

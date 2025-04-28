@@ -26,3 +26,8 @@
 - Update Memory Bank for all changes
 - Document architectural decisions
 - Maintain API documentation
+
+## Task Integration
+
+- Automatically integrate task breakdowns from docs/tasks/ into memory-bank/tasks.md
+- Follow the rules in .cursor/rules/003-task_integration.mdc

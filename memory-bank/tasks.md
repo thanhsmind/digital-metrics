@@ -195,6 +195,36 @@
   - [x] Replace JWEError with JOSEError
   - [x] Test API startup
   - [x] Fix missing app.models.date module
+- [x] Fix app.utils.jwe import error in auth.py
+  - [x] Replace with direct imports from jose library
+  - [x] Successfully tested app startup
+
+### Facebook Token Management Enhancement
+
+1. ✅ Tạo model FacebookBusinessToken
+2. ✅ Tạo model TokenPermissionCheckResponse
+3. ✅ Mở rộng TokenManager để lưu trữ và truy xuất Business Token
+4. ✅ Mở rộng TokenManager để kiểm tra quyền của token
+5. ✅ Mở rộng FacebookAuthService để lấy Business Token từ User Token
+6. ✅ Mở rộng FacebookAuthService để xử lý mở rộng quyền token
+7. ✅ Tạo TokenMiddleware để xử lý hết hạn token trong quá trình request
+8. ✅ Tạo endpoint lấy Business Token
+9. ✅ Tạo endpoint mở rộng quyền token
+10. ✅ Tạo endpoint kiểm tra quyền token
+11. ✅ Cập nhật các endpoint hiện tại để sử dụng TokenManager
+12. ✅ Triển khai mã hóa token (High Priority)
+
+#### Tasks A1-A4: API Endpoints for Token Management - ✅ HOÀN THÀNH
+
+- ✅ A1: Tạo endpoint để lấy Business Token
+- ✅ A2: Tạo endpoint để mở rộng quyền của token
+- ✅ A3: Tạo endpoint để kiểm tra quyền của token
+- ✅ A4: Cập nhật các endpoint hiện tại để sử dụng TokenManager và TokenMiddleware
+
+#### Tasks SE1-SE2: Security cho Token Management - Đang tiến hành
+
+- ✅ SE1: Triển khai mã hóa token trong kho lưu trữ
+- [ ] SE2: Kiểm soát truy cập dựa trên phạm vi token
 
 ## Completed Tasks
 
@@ -215,6 +245,55 @@
 - [x] Testing implementation
 - [x] Deployment setup
 
+## Facebook Token Management Enhancements
+
+### Tasks M1-M2: Tạo các Model mới cho Token Management (P0)
+
+- **Mô tả**: Xây dựng các model Pydantic cần thiết cho việc quản lý token
+- **Trạng thái**: Hoàn thành
+- **Chi tiết**:
+  - [x] Tạo model FacebookBusinessToken trong app/models/facebook.py
+  - [x] Tạo model TokenPermissionCheckResponse trong app/models/facebook.py
+  - [x] Đảm bảo tương thích với Pydantic V2
+
+### Tasks S1-S5: Mở rộng các Service cho Token Management (P0)
+
+- **Mô tả**: Nâng cấp hệ thống service để hỗ trợ đầy đủ các loại token và xử lý hết hạn
+- **Trạng thái**: Hoàn thành
+- **Chi tiết**:
+  - [x] Mở rộng TokenManager để hỗ trợ Business Tokens
+  - [x] Thêm phương thức kiểm tra quyền token
+  - [x] Triển khai cơ chế tự động làm mới token
+  - [x] Mở rộng FacebookAuthService
+  - [x] Tạo TokenMiddleware xử lý token hết hạn tự động
+
+### Tasks A1-A4: Phát triển các API Endpoint mới cho Token Management (P1)
+
+- **Mô tả**: Tạo và cập nhật các API endpoint liên quan đến token
+- **Trạng thái**: Hoàn thành
+- **Chi tiết**:
+  - [x] Tạo endpoint lấy Business Token
+  - [x] Tạo endpoint mở rộng quyền token
+  - [x] Tạo endpoint kiểm tra quyền token
+  - [x] Cập nhật các endpoint hiện có
+
+### Tasks T1-T3: Testing cho Token Management (P1)
+
+- **Mô tả**: Phát triển các test case cho các tính năng token mới
+- **Trạng thái**: Chưa bắt đầu
+- **Chi tiết**:
+  - Viết unit tests cho TokenManager
+  - Viết unit tests cho FacebookAuthService
+  - Viết integration tests với Facebook API
+
+### Tasks SE1-SE2: Security cho Token Management (P0)
+
+- **Mô tả**: Triển khai các biện pháp bảo mật cho token
+- **Trạng thái**: Đang tiến hành
+- **Chi tiết**:
+  - [x] SE1: Triển khai mã hóa token trong kho lưu trữ
+  - [ ] SE2: Kiểm soát truy cập dựa trên phạm vi token
+
 ## Notes
 
 - Task tracking initialized on 2024-03-31
@@ -222,3 +301,24 @@
 - Following FastAPI best practices for implementation
 - Tasks are organized by feature and priority
 - High priority tasks are marked with "(High Priority)"
+
+## Nhiệm vụ trong Sprint hiện tại
+
+### Facebook Token Management Enhancement
+
+- [x] Task 8: Tạo endpoint lấy Business Token
+- [x] Task 9: Tạo endpoint mở rộng quyền token
+- [x] Task 10: Tạo endpoint kiểm tra quyền token
+- [x] Task 11: Cập nhật endpoint thống kê Insights để tự động xử lý token hết hạn
+- [x] Task 12: Cải thiện hệ thống mã hóa token - chuyển từ giải pháp mã hóa tạm thời (Base64) sang giải pháp mã hóa an toàn (JWE) với xử lý lỗi tốt hơn
+
+### Tasks A1-A4: Multiple Dashboard Support
+
+- [ ] A1: Design database schema for multiple dashboards
+- [ ] A2: Create API for dashboard management
+- [ ] A3: Implement dashboard data service
+- [ ] A4: Update UI for dashboard selection
+
+Status: Đang tiến hành
+
+## Upcoming Tasks

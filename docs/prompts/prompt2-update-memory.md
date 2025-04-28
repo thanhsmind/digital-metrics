@@ -1,0 +1,1 @@
+Make sure you are keeping a task log in ./windsurf/task-logs/ and update memory

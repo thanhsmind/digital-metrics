@@ -157,11 +157,20 @@ def validate_date_range(date_range: DateRange) -> None:
         ... )
         >>> validate_date_range(invalid_range)  # Raises ValidationError
     """
+    now = datetime.now()
+
     # Ensure start_date is not in the future
-    if date_range.start_date > datetime.now():
+    if date_range.start_date > now:
         raise ValidationError(
             "Start date cannot be in the future",
             details={"start_date": str(date_range.start_date)},
+        )
+
+    # Ensure end_date is not in the future
+    if date_range.end_date > now:
+        raise ValidationError(
+            "End date cannot be in the future",
+            details={"end_date": str(date_range.end_date)},
         )
 
     # Ensure start_date is before end_date

@@ -40,6 +40,33 @@ class FacebookPageToken(BaseModel):
     updated_at: datetime = Field(default_factory=datetime.now)
 
 
+class FacebookBusinessToken(BaseModel):
+    """Model đại diện cho Business Access Token"""
+
+    business_id: str
+    access_token: str
+    token_type: str = "business"
+    app_id: str
+    expires_at: Optional[datetime] = None
+    is_valid: bool = True
+    scopes: List[str] = []
+    updated_at: datetime = Field(default_factory=datetime.now)
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "business_id": "123456789",
+                "access_token": "EAA...",
+                "token_type": "business",
+                "app_id": "987654321",
+                "expires_at": "2023-12-31T23:59:59",
+                "is_valid": True,
+                "scopes": ["business_management", "ads_management"],
+                "updated_at": "2023-01-01T12:00:00Z",
+            }
+        }
+
+
 class TokenValidationResponse(BaseModel):
     """Kết quả của việc validate token"""
 
@@ -50,6 +77,70 @@ class TokenValidationResponse(BaseModel):
     scopes: List[str] = []
     expires_at: Optional[datetime] = None
     error_message: Optional[str] = None
+
+
+class TokenPermissionCheckResponse(BaseModel):
+    """Model phản hồi sau khi kiểm tra quyền của token"""
+
+    has_permission: bool
+    missing_permissions: List[str] = []
+    token_status: str = "valid"  # valid, expired, invalid
+    authorization_url: Optional[str] = None
+    message: str
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "has_permission": False,
+                "missing_permissions": [
+                    "ads_management",
+                    "business_management",
+                ],
+                "token_status": "valid",
+                "authorization_url": "https://www.facebook.com/v17.0/dialog/oauth?...",
+                "message": "Token lacks required permissions",
+            }
+        }
+
+    @classmethod
+    def create_success(
+        cls, message: str = "Token has all required permissions"
+    ):
+        """Create a success response"""
+        return cls(
+            has_permission=True,
+            missing_permissions=[],
+            token_status="valid",
+            message=message,
+        )
+
+    @classmethod
+    def create_missing_permissions(
+        cls, missing: List[str], auth_url: Optional[str] = None
+    ):
+        """Create a response for missing permissions"""
+        return cls(
+            has_permission=False,
+            missing_permissions=missing,
+            token_status="valid",
+            authorization_url=auth_url,
+            message=f"Token is missing required permissions: {', '.join(missing)}",
+        )
+
+    @classmethod
+    def create_invalid(cls, reason: str = "Token is invalid"):
+        """Create a response for invalid token"""
+        return cls(has_permission=False, token_status="invalid", message=reason)
+
+    @classmethod
+    def create_expired(cls, auth_url: Optional[str] = None):
+        """Create a response for expired token"""
+        return cls(
+            has_permission=False,
+            token_status="expired",
+            authorization_url=auth_url,
+            message="Token has expired",
+        )
 
 
 class TokenRefreshResponse(BaseModel):

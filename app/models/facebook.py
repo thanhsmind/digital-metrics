@@ -31,8 +31,8 @@ class PostInsight(BaseModel):
     type: str
     metrics: Dict[str, Any]
 
-    class Config:
-        schema_extra = {
+    model_config = {
+        "json_schema_extra": {
             "example": {
                 "post_id": "123456789_987654321",
                 "created_time": "2023-10-15T10:30:00+0000",
@@ -46,6 +46,7 @@ class PostInsight(BaseModel):
                 },
             }
         }
+    }
 
 
 class VideoInsight(BaseModel):
@@ -66,8 +67,8 @@ class VideoInsight(BaseModel):
     created_time: datetime
     metrics: Dict[str, Any]
 
-    class Config:
-        schema_extra = {
+    model_config = {
+        "json_schema_extra": {
             "example": {
                 "video_id": "123456789012345",
                 "title": "My Awesome Reel",
@@ -81,6 +82,7 @@ class VideoInsight(BaseModel):
                 },
             }
         }
+    }
 
 
 class AdsInsight(BaseModel):
@@ -118,8 +120,8 @@ class AdsInsight(BaseModel):
     metrics: Dict[str, Any]
     dimensions: Dict[str, Any]
 
-    class Config:
-        schema_extra = {
+    model_config = {
+        "json_schema_extra": {
             "example": {
                 "account_id": "act_123456789",
                 "campaign_id": "987654321",
@@ -144,6 +146,7 @@ class AdsInsight(BaseModel):
                 },
             }
         }
+    }
 
 
 class TokenDebugInfo(BaseModel):
@@ -198,8 +201,8 @@ class FacebookCampaignMetricsRequest(BaseModel):
     metrics: List[str]
     dimensions: Optional[List[str]] = None
 
-    class Config:
-        schema_extra = {
+    model_config = {
+        "json_schema_extra": {
             "example": {
                 "ad_account_id": "act_1234567890",
                 "campaign_ids": ["987654321", "123123123"],
@@ -219,26 +222,27 @@ class FacebookCampaignMetricsRequest(BaseModel):
                 "metrics": ["impressions", "spend"],
             },
         }
+    }
 
 
 class FacebookMetricsResponse(BaseModel):
     """
-    Model phản hồi cho Facebook Metrics API.
+    Model kết quả cho Facebook Metrics API.
 
     Attributes:
-        success: Trạng thái của request
-        message: Thông báo mô tả kết quả
-        data: Dữ liệu metrics (Thường là list các Pydantic models như AdsInsight, PostInsight)
+        success: Kết quả API là thành công hay thất bại
+        message: Thông báo từ API
+        data: Dữ liệu metrics (nếu thành công)
         summary: Tóm tắt metrics (nếu có)
     """
 
-    success: bool = True
-    message: Optional[str] = None
+    success: bool
+    message: str
     data: List[Dict[str, Any]]
-    summary: Optional[Dict[str, Any]] = None
+    summary: Dict[str, Any] = {}
 
-    class Config:
-        schema_extra = {
+    model_config = {
+        "json_schema_extra": {
             "example_success": {
                 "success": True,
                 "message": "Successfully retrieved 2 campaign insights.",
@@ -268,6 +272,7 @@ class FacebookMetricsResponse(BaseModel):
                 "success": False,
                 "message": "Invalid metrics requested: [invalid_metric]",
                 "data": [],
-                "summary": None,
+                "summary": {},
             },
         }
+    }

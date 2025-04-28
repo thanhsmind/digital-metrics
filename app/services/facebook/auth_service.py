@@ -13,6 +13,7 @@ from app.core.config import settings
 from app.models.auth import (
     AuthError,
     FacebookAuthCredential,
+    FacebookBusinessToken,
     FacebookPageToken,
     FacebookUserToken,
     TokenValidationResponse,
@@ -718,3 +719,181 @@ class FacebookAuthService:
         except Exception as e:
             logging.error(f"Error encrypting stored tokens: {str(e)}")
             return result
+
+    async def get_business_access_token(
+        self, user_token: str, business_id: str
+    ) -> Optional[FacebookBusinessToken]:
+        """
+        Lấy Business Access Token từ user token
+
+        Args:
+            user_token: User access token
+            business_id: ID của business cần lấy token
+
+        Returns:
+            FacebookBusinessToken object hoặc None nếu thất bại
+
+        Raises:
+            AuthError: Khi có lỗi trong quá trình lấy token
+        """
+        logging.info(
+            f"Getting business access token for business_id: {business_id}"
+        )
+
+        try:
+            # Khởi tạo API với user token
+            api = FacebookAdsApi.init(
+                app_id=self.app_id,
+                app_secret=self.app_secret,
+                access_token=user_token,
+                api_version=self.api_version,
+            )
+
+            # Validate user token
+            validation = await self.validate_token(user_token)
+            if not validation.is_valid:
+                logging.error(f"Invalid user token: {validation.error_message}")
+                raise AuthError(
+                    f"Invalid user token: {validation.error_message}",
+                    "invalid_token",
+                )
+
+            # Kiểm tra quyền cần thiết
+            required_permissions = ["business_management", "ads_management"]
+            has_all_permissions = all(
+                perm in validation.scopes for perm in required_permissions
+            )
+
+            if not has_all_permissions:
+                missing = [
+                    perm
+                    for perm in required_permissions
+                    if perm not in validation.scopes
+                ]
+                logging.error(
+                    f"Token lacks required permissions: {', '.join(missing)}"
+                )
+                raise AuthError(
+                    f"Token lacks required permissions: {', '.join(missing)}",
+                    "insufficient_permissions",
+                )
+
+            # Lấy system user của business
+            try:
+                # Truy cập endpoint để lấy system user token
+                response = api.call(
+                    "GET",
+                    f"{self.api_version}/{business_id}/system_users",
+                    params={
+                        "access_token": user_token,
+                        "fields": "id,name,role,access_token",
+                    },
+                )
+
+                # Xử lý response
+                data = response.json()
+                if "data" in data and len(data["data"]) > 0:
+                    # Lấy system user đầu tiên có access_token
+                    for user in data["data"]:
+                        if "access_token" in user:
+                            business_token = user["access_token"]
+
+                            # Validate business token
+                            business_validation = await self.validate_token(
+                                business_token
+                            )
+
+                            # Tạo business token model
+                            token_model = FacebookBusinessToken(
+                                business_id=business_id,
+                                access_token=business_token,
+                                app_id=self.app_id,
+                                expires_at=business_validation.expires_at,
+                                is_valid=business_validation.is_valid,
+                                scopes=business_validation.scopes,
+                            )
+
+                            return token_model
+
+                    logging.warning(
+                        f"No system users with access token found for business: {business_id}"
+                    )
+                else:
+                    logging.warning(
+                        f"No system users found for business: {business_id}"
+                    )
+
+                return None
+
+            except FacebookRequestError as e:
+                logging.error(
+                    f"Facebook API error getting system users: {str(e)}"
+                )
+                raise AuthError(
+                    f"Facebook API error: {e.api_error_message()}",
+                    f"facebook_error_{e.api_error_code()}",
+                )
+
+        except FacebookRequestError as e:
+            logging.error(f"Facebook API error: {str(e)}")
+            raise AuthError(
+                f"Facebook API error: {e.api_error_message()}",
+                f"facebook_error_{e.api_error_code()}",
+            )
+
+        except Exception as e:
+            logging.error(f"Error getting business access token: {str(e)}")
+            raise AuthError(f"Failed to get business access token: {str(e)}")
+
+    async def extend_token_permissions(
+        self, token: str, permissions: List[str]
+    ) -> Optional[str]:
+        """
+        Mở rộng quyền cho token hiện có
+
+        Args:
+            token: Token cần mở rộng quyền
+            permissions: Danh sách quyền cần thêm
+
+        Returns:
+            Token mới với quyền đã mở rộng, hoặc None nếu thất bại
+
+        Raises:
+            AuthError: Khi có lỗi trong quá trình mở rộng quyền
+        """
+        logging.info(f"Extending token permissions: {', '.join(permissions)}")
+
+        try:
+            # Validate token hiện tại
+            validation = await self.validate_token(token)
+            if not validation.is_valid:
+                logging.error(
+                    f"Cannot extend permissions for invalid token: {validation.error_message}"
+                )
+                raise AuthError(
+                    f"Invalid token: {validation.error_message}",
+                    "invalid_token",
+                )
+
+            # Tạo URL xác thực với tất cả các quyền cần thiết
+            current_scopes = validation.scopes
+
+            # Kết hợp các quyền hiện tại và mới
+            combined_scopes = list(set(current_scopes + permissions))
+
+            # Tạo URL xác thực với các quyền kết hợp
+            auth_url = self.get_authorization_url(scopes=combined_scopes)
+
+            logging.info(
+                f"Created auth URL for extended permissions: {auth_url['authorization_url']}"
+            )
+
+            # Lưu ý: Người dùng cần truy cập URL này và hoàn thành quy trình OAuth
+            # để nhận token mới với quyền mở rộng. Trong API thực tế, chúng ta sẽ
+            # trả về URL này cho client và xử lý callback.
+
+            return auth_url["authorization_url"]
+
+        except Exception as e:
+            logging.error(f"Error extending token permissions: {str(e)}")
+            raise AuthError(f"Failed to extend token permissions: {str(e)}")
