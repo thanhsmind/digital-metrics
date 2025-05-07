@@ -63,7 +63,8 @@ GOOGLE_ADS_CONFIG_FILE=google-ads.yaml
 6. Chạy ứng dụng:
 
 ```bash
-uvicorn app.main:app --reload
+uv run uvicorn app.main:app --reload
+#uvicorn app.main:app --reload
 ```
 
 ## API Documentation

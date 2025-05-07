@@ -2,7 +2,7 @@
   "commands": [
     {
       "name": "Khởi động API",
-      "command": "uv run uvicorn app.main:src --reload",
+      "command": "uv run uvicorn app.main:app --reload",
       "cwd": "${workspaceFolder}"
     },
     {
@@ -22,7 +22,7 @@
     },
     {
       "name": "Kích hoạt Môi trường",
-      "command": "powershell -Command \"& { . .\\.venv\\Scripts\\Activate.ps1; cmd }\"",
+      "command": "powershell -Command \"& { . .\\.venv\\Scripts\\activate; cmd }\"",
       "cwd": "${workspaceFolder}"
     }
   ]
