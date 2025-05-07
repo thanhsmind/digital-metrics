@@ -296,3 +296,8 @@ Successfully implemented comprehensive token encryption for all token types:
 3. **Token Permissions**:
    - Một số token user không có đủ quyền để truy cập tất cả API
    - Đã implement permission check, nhưng cần thêm hướng dẫn cho user để extend permissions
+
+## Recent Activity
+
+- **Current Task**: Migrate from `venv` to `uv` for Python virtual environment management.
+- **Objective**: Use `uv venv` for creating and managing virtual environments, replacing the standard `venv` module.

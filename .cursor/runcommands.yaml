@@ -1,21 +1,21 @@
 commands:
   - name: "python"
-    command: "powershell -Command \"& { . .\\venv\\Scripts\\Activate.ps1; python ${args} }\""
+    command: "uv run python ${args}"
 
   - name: "uvicorn"
-    command: "powershell -Command \"& { . .\\venv\\Scripts\\Activate.ps1; uvicorn ${args} }\""
+    command: "uv run uvicorn ${args}"
 
   - name: "pytest"
-    command: "powershell -Command \"& { . .\\venv\\Scripts\\Activate.ps1; pytest ${args} }\""
+    command: "uv run pytest ${args}"
 
   - name: "pip"
-    command: "powershell -Command \"& { . .\\venv\\Scripts\\Activate.ps1; pip ${args} }\""
+    command: "uv ${args}"
 
   - name: "fastapi"
-    command: "powershell -Command \"& { . .\\venv\\Scripts\\Activate.ps1; fastapi ${args} }\""
+    command: "uv run fastapi ${args}"
 
   - name: "run-api"
-    command: "powershell -Command \"& { . .\\venv\\Scripts\\Activate.ps1; uvicorn app.main:app --reload }\""
+    command: "uv run uvicorn app.main:app --reload"
 
   - name: "debug"
-    command: "powershell -Command \"& { . .\\venv\\Scripts\\Activate.ps1; python debug.py }\""
+    command: "uv run python debug.py"

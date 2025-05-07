@@ -322,3 +322,17 @@
 Status: Đang tiến hành
 
 ## Upcoming Tasks
+
+- [x] **Task: Migrate from pip to uv**
+  - [x] Check for existing `uv` installation.
+  - [x] Install `uv` if not present.
+  - [x] Update any project scripts or documentation referencing `pip` to use `uv`.
+  - [x] Test dependency installation using `uv`.
+  - [x] Document the switch in `techContext.md`.
+- [x] **Task: Migrate from venv to uv for virtual environments**
+  - [x] Research `uv venv` command and its behavior (e.g., activation, path).
+  - [x] Update `README.md` with new environment creation/activation steps using `uv`.
+  - [x] Update `memory-bank/techContext.md` to reflect `uv` for virtual environments.
+  - [x] Update `.cursor/runcommands.yaml` to use `uv` for running commands in the environment.
+  - [x] Update `.cursor-commands.json` similarly.
+  - [ ] Test creating an environment and running commands. <-- This step is pending your manual actions and subsequent testing.

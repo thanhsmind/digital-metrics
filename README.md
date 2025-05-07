@@ -31,15 +31,15 @@ cd digital-metrics
 2. Tạo virtual environment:
 
 ```bash
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-venv\Scripts\activate     # Windows
+uv venv .venv
+source .venv/bin/activate  # Linux/Mac
+.venv\Scripts\activate     # Windows
 ```
 
 3. Cài đặt dependencies:
 
 ```bash
-pip install -r requirements.txt
+uv pip install -r requirements.txt
 ```
 
 4. Tạo file .env:
@@ -63,9 +63,6 @@ GOOGLE_ADS_CONFIG_FILE=google-ads.yaml
 6. Chạy ứng dụng:
 
 ```bash
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-venv\Scripts\activate     # Windows
 uvicorn app.main:app --reload
 ```
 

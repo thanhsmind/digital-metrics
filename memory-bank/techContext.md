@@ -18,7 +18,8 @@ app/
 ## Technical Stack
 
 - Python/FastAPI
-- Environment: Python venv
+- Environment: Python virtual environment managed by `uv` (typically `.venv`)
+  - To create environment: `uv venv .venv` (or `uv venv`)
 - Dependencies: requirements.txt
 - Configuration: .env files
 - Testing: pytest
@@ -41,6 +42,13 @@ app/
 
 - Windows-specific command adaptations required
 - Using PowerShell for command execution
+
+## Dependency Management
+
+- **Package Manager**: `uv` is used for Python dependency management. It replaces `pip` for faster and more efficient package installation and resolution.
+  - To install dependencies: `uv pip install -r requirements.txt`
+  - To add a new package: `uv pip install <package-name>`
+  - To freeze dependencies: `uv pip freeze > requirements.txt`
 
 ## Notes
 
