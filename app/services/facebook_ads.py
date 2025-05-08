@@ -69,16 +69,22 @@ class FacebookAdsService:
 
     async def _get_api_instance(self, access_token: str) -> FacebookAdsApi:
         """Initializes the FacebookAdsApi instance with a specific user token."""
-        # Decrypt token if necessary (using TokenEncryption)
-        # decrypted_token = TokenEncryption.decrypt_token(access_token)
+        # Decrypt token if necessary (not implemented yet)
         decrypted_token = access_token  # Placeholder if not encrypted
-        # Ensure API is initialized for the current thread/context
-        return FacebookAdsApi.init(
+
+        # Create a clean initialization with only the documented parameters
+        # This ensures no unexpected parameters are passed to the SDK
+        api = FacebookAdsApi.init(
             app_id=settings.FACEBOOK_APP_ID,
             app_secret=settings.FACEBOOK_APP_SECRET,
             access_token=decrypted_token,
             api_version=settings.FACEBOOK_API_VERSION,
         )
+
+        logger.debug(
+            f"Facebook API initialized with version {settings.FACEBOOK_API_VERSION}"
+        )
+        return api
 
     def update_access_token(self, access_token: str) -> None:
         """
@@ -373,160 +379,220 @@ class FacebookAdsService:
         try:
             # 2. Initialize API
             api = await self._get_api_instance(access_token)
-            page = Page(page_id, api=api)
 
-            # 3. Fetch Posts within Date Range
-            # Convert dates to Unix timestamps for 'since' and 'until'
-            since_timestamp = int(
-                datetime.combine(
-                    date_range.start_date, datetime.min.time()
-                ).timestamp()
-            )
-            until_timestamp = int(
-                datetime.combine(
-                    date_range.end_date, datetime.max.time()
-                ).timestamp()
-            )
+            # 3. Attempt to get Page access token if needed
+            try:
+                # First try directly with the provided token
+                page = Page(page_id, api=api)
 
-            # Specify fields including status_type
-            post_fields = [
-                PagePost.Field.id,
-                PagePost.Field.created_time,
-                PagePost.Field.message,
-                PagePost.Field.status_type,  # Use status_type
-            ]
-            post_params = {
-                "since": since_timestamp,
-                "until": until_timestamp,
-                "limit": 100,  # Fetch posts in batches
-            }
+                # Fetch Posts within Date Range
+                since_timestamp = int(
+                    datetime.combine(
+                        date_range.start_date, datetime.min.time()
+                    ).timestamp()
+                )
+                until_timestamp = int(
+                    datetime.combine(
+                        date_range.end_date, datetime.max.time()
+                    ).timestamp()
+                )
 
-            logger.debug(
-                f"Fetching posts for page {page_id} between {date_range.start_date} and {date_range.end_date}"
-            )
-            posts_cursor = await asyncio.to_thread(
-                page.get_posts, fields=post_fields, params=post_params
-            )
-            all_posts = await asyncio.to_thread(list, posts_cursor)
-            logger.info(
-                f"Found {len(all_posts)} posts for page {page_id} in the specified date range."
-            )
+                # Specify fields including status_type
+                post_fields = [
+                    PagePost.Field.id,
+                    PagePost.Field.created_time,
+                    PagePost.Field.message,
+                    PagePost.Field.status_type,
+                ]
+                post_params = {
+                    "since": since_timestamp,
+                    "until": until_timestamp,
+                    "limit": 100,
+                }
 
-            # 4. Fetch Insights for Each Post
-            post_details_map = {
-                post[PagePost.Field.id]: post for post in all_posts
-            }
+                logger.debug(
+                    f"Fetching posts for page {page_id} between {date_range.start_date} and {date_range.end_date}"
+                )
 
-            async def fetch_single_post_insights(post_id):
+                # Try to get posts, which might fail if we need a Page token
                 try:
-                    post = PagePost(post_id, api=api)
-                    # Construct insight params - period 'lifetime' often used for post insights
-                    insight_params = {
-                        # Metrics go in 'fields' for get_insights
-                        "period": "lifetime",
-                    }
-                    # Use fields=metrics and params=insight_params
-                    insights_result = await asyncio.to_thread(
-                        post.get_insights, fields=metrics, params=insight_params
+                    posts_cursor = await asyncio.to_thread(
+                        page.get_posts, fields=post_fields, params=post_params
                     )
-
-                    if insights_result:
-                        # Insights for a post usually return a list with one item
-                        insight_data = insights_result[0].export_data()
-                        metrics_dict = {}
-                        # Insights data structure can vary, check 'values' first
-                        if "values" in insight_data and isinstance(
-                            insight_data["values"], list
-                        ):
-                            for value_entry in insight_data["values"]:
-                                metric_name = value_entry.get(
-                                    "name"
-                                )  # Video insights use 'name'
-                                if metric_name in metrics:
-                                    metrics_dict[metric_name] = value_entry.get(
-                                        "value", 0
-                                    )
-                                # Handle post metrics which might use 'verb'
-                                verb_name = value_entry.get("verb")
-                                if verb_name in metrics:
-                                    metrics_dict[verb_name] = value_entry.get(
-                                        "value", 0
-                                    )
-
-                        # Fallback: Check if metrics are direct keys in insight_data
-                        for metric_name in metrics:
-                            if (
-                                metric_name in insight_data
-                                and metric_name not in metrics_dict
-                            ):
-                                metrics_dict[metric_name] = insight_data[
-                                    metric_name
-                                ]
-
-                        post_detail = post_details_map.get(post_id)
-                        if post_detail:
-                            return PostInsight(
-                                post_id=post_detail[PagePost.Field.id],
-                                created_time=post_detail[
-                                    PagePost.Field.created_time
-                                ],
-                                message=post_detail.get(PagePost.Field.message),
-                                type=post_detail.get(
-                                    PagePost.Field.status_type
-                                ),  # Assign status_type to type field
-                                metrics=metrics_dict,
-                            )
+                    all_posts = await asyncio.to_thread(list, posts_cursor)
                 except FacebookRequestError as e:
-                    # Log error for specific post but continue with others
-                    logger.warning(
-                        f"FB API error fetching insights for post {post_id}: {e.api_error_message()}"
-                    )
-                    # Use correct handler method name
-                    self.error_handler.handle_error(
-                        e,
-                        f"fetching insights for post {post_id}",
-                        # raise_exception=False, # handle_error doesn't take this
-                    )
-                except Exception as e:
-                    logger.error(
-                        f"Unexpected error fetching insights for post {post_id}: {e}",
-                        exc_info=True,
-                    )
-                return None  # Return None on error for this post
+                    # Check if the error is related to token type
+                    if (
+                        e.api_error_code() == 190
+                        and e.api_error_subcode() == 2069032
+                    ):
+                        logger.info(
+                            f"User access token not supported for page {page_id}, attempting to get page access token"
+                        )
 
-            # Run insight fetching concurrently
-            tasks = [
-                fetch_single_post_insights(post_id)
-                for post_id in post_details_map.keys()
-            ]
-            results = await asyncio.gather(*tasks)
+                        # Try to get page token using the user token
+                        try:
+                            page_info = await asyncio.to_thread(
+                                Page(page_id, api=api).api_get,
+                                fields=["access_token"],
+                            )
 
-            # Filter out None results (errors)
-            post_insights_data = [res for res in results if res is not None]
-            logger.info(
-                f"Successfully fetched insights for {len(post_insights_data)} posts."
-            )
+                            # If we got a page access token, reinitialize the API
+                            if "access_token" in page_info:
+                                page_token = page_info["access_token"]
+                                logger.info(
+                                    f"Successfully obtained page access token for page {page_id}"
+                                )
 
-            # 5. Caching
-            await self.cache_service.set(
-                cache_key,
-                [item.dict() for item in post_insights_data],
-                ttl=DEFAULT_CACHE_TTL,
-            )
-            logger.info(
-                f"Cached {len(post_insights_data)} post insights for key: {cache_key}"
-            )
+                                # Reinitialize API with page token
+                                api = await self._get_api_instance(page_token)
+                                page = Page(page_id, api=api)
 
-        except FacebookRequestError as e:
-            logger.error(
-                f"Facebook API error fetching posts or insights for page {page_id}: {e}",
-                exc_info=True,
-            )
-            # Use correct handler method name
-            self.error_handler.handle_error(
-                e, f"fetching posts/insights for page {page_id}"
-            )
-            return []
+                                # Retry the posts request with the page token
+                                posts_cursor = await asyncio.to_thread(
+                                    page.get_posts,
+                                    fields=post_fields,
+                                    params=post_params,
+                                )
+                                all_posts = await asyncio.to_thread(
+                                    list, posts_cursor
+                                )
+                            else:
+                                logger.error(
+                                    f"Could not obtain page access token for page {page_id}"
+                                )
+                                return []
+                        except FacebookRequestError as token_error:
+                            logger.error(
+                                f"Failed to get page access token for page {page_id}: {token_error}"
+                            )
+                            return []
+                    else:
+                        # Not a token type error, re-raise
+                        raise
+
+                logger.info(
+                    f"Found {len(all_posts)} posts for page {page_id} in the specified date range."
+                )
+
+                # 4. Fetch Insights for Each Post
+                post_details_map = {
+                    post[PagePost.Field.id]: post for post in all_posts
+                }
+
+                async def fetch_single_post_insights(post_id):
+                    try:
+                        post = PagePost(post_id, api=api)
+                        # Construct insight params - period 'lifetime' often used for post insights
+                        insight_params = {
+                            # Metrics go in 'fields' for get_insights
+                            "period": "lifetime",
+                        }
+                        # Use fields=metrics and params=insight_params
+                        insights_result = await asyncio.to_thread(
+                            post.get_insights,
+                            fields=metrics,
+                            params=insight_params,
+                        )
+
+                        if insights_result:
+                            # Insights for a post usually return a list with one item
+                            insight_data = insights_result[0].export_data()
+                            metrics_dict = {}
+                            # Insights data structure can vary, check 'values' first
+                            if "values" in insight_data and isinstance(
+                                insight_data["values"], list
+                            ):
+                                for value_entry in insight_data["values"]:
+                                    metric_name = value_entry.get(
+                                        "name"
+                                    )  # Video insights use 'name'
+                                    if metric_name in metrics:
+                                        metrics_dict[metric_name] = (
+                                            value_entry.get("value", 0)
+                                        )
+                                    # Handle post metrics which might use 'verb'
+                                    verb_name = value_entry.get("verb")
+                                    if verb_name in metrics:
+                                        metrics_dict[verb_name] = (
+                                            value_entry.get("value", 0)
+                                        )
+
+                            # Fallback: Check if metrics are direct keys in insight_data
+                            for metric_name in metrics:
+                                if (
+                                    metric_name in insight_data
+                                    and metric_name not in metrics_dict
+                                ):
+                                    metrics_dict[metric_name] = insight_data[
+                                        metric_name
+                                    ]
+
+                            post_detail = post_details_map.get(post_id)
+                            if post_detail:
+                                return PostInsight(
+                                    post_id=post_detail[PagePost.Field.id],
+                                    created_time=post_detail[
+                                        PagePost.Field.created_time
+                                    ],
+                                    message=post_detail.get(
+                                        PagePost.Field.message
+                                    ),
+                                    type=post_detail.get(
+                                        PagePost.Field.status_type
+                                    ),  # Assign status_type to type field
+                                    metrics=metrics_dict,
+                                )
+                    except FacebookRequestError as e:
+                        # Log error for specific post but continue with others
+                        logger.warning(
+                            f"FB API error fetching insights for post {post_id}: {e.api_error_message()}"
+                        )
+                        # Use correct handler method name
+                        self.error_handler.handle_error(
+                            e,
+                            f"fetching insights for post {post_id}",
+                            # raise_exception=False, # handle_error doesn't take this
+                        )
+                    except Exception as e:
+                        logger.error(
+                            f"Unexpected error fetching insights for post {post_id}: {e}",
+                            exc_info=True,
+                        )
+                    return None  # Return None on error for this post
+
+                # Run insight fetching concurrently
+                tasks = [
+                    fetch_single_post_insights(post_id)
+                    for post_id in post_details_map.keys()
+                ]
+                results = await asyncio.gather(*tasks)
+
+                # Filter out None results (errors)
+                post_insights_data = [res for res in results if res is not None]
+                logger.info(
+                    f"Successfully fetched insights for {len(post_insights_data)} posts."
+                )
+
+                # 5. Caching
+                await self.cache_service.set(
+                    cache_key,
+                    [item.dict() for item in post_insights_data],
+                    ttl=DEFAULT_CACHE_TTL,
+                )
+                logger.info(
+                    f"Cached {len(post_insights_data)} post insights for key: {cache_key}"
+                )
+            except FacebookRequestError as e:
+                logger.error(
+                    f"Facebook API error fetching posts or insights for page {page_id}: {e}",
+                    exc_info=True,
+                )
+                # Use correct handler method name
+                self.error_handler.handle_error(
+                    e, f"fetching posts/insights for page {page_id}"
+                )
+                return []
         except Exception as e:
             logger.error(
                 f"Unexpected error fetching post insights for page {page_id}: {e}",
@@ -589,176 +655,231 @@ class FacebookAdsService:
         try:
             # 2. Initialize API
             api = await self._get_api_instance(access_token)
-            page = Page(page_id, api=api)
 
-            # 3. Fetch Videos within Date Range
-            since_timestamp = int(
-                datetime.combine(
-                    date_range.start_date, datetime.min.time()
-                ).timestamp()
-            )
-            until_timestamp = int(
-                datetime.combine(
-                    date_range.end_date, datetime.max.time()
-                ).timestamp()
-            )
+            # 3. Attempt to get Page access token if needed
+            try:
+                # First try with the provided token
+                page = Page(page_id, api=api)
 
-            # Fields needed for VideoInsight and filtering
-            video_fields = [
-                AdVideo.Field.id,
-                AdVideo.Field.title,
-                AdVideo.Field.description,
-                AdVideo.Field.created_time,
-                # Add potentially useful fields to identify reels if available
-                # 'content_category', 'video_type', etc. - Check SDK/API documentation
-            ]
-            video_params = {
-                "since": since_timestamp,
-                "until": until_timestamp,
-                "limit": 100,
-                "type": "uploaded",  # Attempt to specify video type - check if 'REEL' is valid
-            }
+                # Set up the timestamp range
+                since_timestamp = int(
+                    datetime.combine(
+                        date_range.start_date, datetime.min.time()
+                    ).timestamp()
+                )
+                until_timestamp = int(
+                    datetime.combine(
+                        date_range.end_date, datetime.max.time()
+                    ).timestamp()
+                )
 
-            logger.debug(
-                f"Fetching videos for page {page_id} between {date_range.start_date} and {date_range.end_date}"
-            )
-            # Use page.get_videos which is designed for this purpose
-            videos_cursor = await asyncio.to_thread(
-                page.get_videos, fields=video_fields, params=video_params
-            )
+                # Fields needed for VideoInsight and filtering
+                video_fields = [
+                    AdVideo.Field.id,
+                    AdVideo.Field.title,
+                    AdVideo.Field.description,
+                    AdVideo.Field.created_time,
+                ]
+                video_params = {
+                    "since": since_timestamp,
+                    "until": until_timestamp,
+                    "limit": 100,
+                    "type": "uploaded",
+                }
 
-            all_videos = await asyncio.to_thread(list, videos_cursor)
-            logger.info(
-                f"Found {len(all_videos)} videos/reels for page {page_id} in the specified date range."
-            )
+                logger.debug(
+                    f"Fetching videos for page {page_id} between {date_range.start_date} and {date_range.end_date}"
+                )
 
-            # Filter for reels if possible (FB API might not have a direct filter or field)
-            # If no reliable field exists, we might process all videos assuming they could be reels
-            reel_videos = all_videos
-            logger.info(f"Processing {len(reel_videos)} potential reels.")
-
-            # 4. Fetch Insights for Each Reel/Video
-            video_details_map = {
-                video[AdVideo.Field.id]: video for video in reel_videos
-            }
-
-            async def fetch_single_video_insights(video_id):
+                # Try to get videos, which might fail if we need a Page token
                 try:
-                    video = AdVideo(video_id, api=api)
-                    # Video insights expect metrics via the 'fields' argument
-                    # and other params like 'period' via the 'params' argument
-                    insight_params = {
-                        "period": "lifetime",  # Lifetime is common for video insights
-                    }
-                    # Use the SDK's get_insights method directly
-                    insights_result = await asyncio.to_thread(
-                        video.get_insights,
-                        fields=metrics,
-                        params=insight_params,
+                    # Use page.get_videos which is designed for this purpose
+                    videos_cursor = await asyncio.to_thread(
+                        page.get_videos,
+                        fields=video_fields,
+                        params=video_params,
                     )
-
-                    if insights_result:
-                        # Insights result is typically a list-like object (EdgeIterator)
-                        # containing AdInsights objects. Iterate or take the first.
-                        processed_insights = []
-                        for (
-                            insight
-                        ) in (
-                            insights_result
-                        ):  # Iterate through potential paginated results
-                            insight_data = insight.export_data()
-                            metrics_dict = {}
-                            # Check 'values' structure first (often used for posts)
-                            if "values" in insight_data and isinstance(
-                                insight_data["values"], list
-                            ):
-                                for value_entry in insight_data["values"]:
-                                    metric_name = value_entry.get(
-                                        "name"
-                                    )  # Video insights tend to use 'name'
-                                    if metric_name in metrics:
-                                        metrics_dict[metric_name] = (
-                                            value_entry.get("value", 0)
-                                        )
-                            # Fallback: Check if metrics are direct keys (often used for ads/campaigns)
-                            else:
-                                for metric_name in metrics:
-                                    if metric_name in insight_data:
-                                        metrics_dict[metric_name] = (
-                                            insight_data[metric_name]
-                                        )
-
-                            # If we got any metrics, add to list for this video
-                            if metrics_dict:
-                                processed_insights.append(metrics_dict)
-
-                        # Aggregate metrics if multiple insights returned per video (e.g., daily breakdown if period='day')
-                        # For period='lifetime', usually only one result. We'll take the first if exists.
-                        final_metrics_dict = (
-                            processed_insights[0] if processed_insights else {}
+                    all_videos = await asyncio.to_thread(list, videos_cursor)
+                except FacebookRequestError as e:
+                    # Check if the error is related to token type
+                    if (
+                        e.api_error_code() == 190
+                        and e.api_error_subcode() == 2069032
+                    ):
+                        logger.info(
+                            f"User access token not supported for page {page_id}, attempting to get page access token"
                         )
 
-                        video_detail = video_details_map.get(video_id)
-                        if video_detail:
-                            return VideoInsight(
-                                video_id=video_detail[AdVideo.Field.id],
-                                title=video_detail.get(AdVideo.Field.title),
-                                description=video_detail.get(
-                                    AdVideo.Field.description
-                                ),
-                                created_time=video_detail[
-                                    AdVideo.Field.created_time
-                                ],
-                                metrics=final_metrics_dict,
+                        # Try to get page token using the user token
+                        try:
+                            page_info = await asyncio.to_thread(
+                                Page(page_id, api=api).api_get,
+                                fields=["access_token"],
                             )
-                except FacebookRequestError as e:
-                    logger.warning(
-                        f"FB API error fetching insights for video {video_id}: {e.api_error_message()}"
-                    )
-                    # Use correct handler method name
-                    self.error_handler.handle_error(
-                        e,
-                        f"fetching insights for video {video_id}",
-                        # raise_exception=False, # handle_error doesn't take this
-                    )
-                except Exception as e:
-                    logger.error(
-                        f"Unexpected error fetching insights for video {video_id}: {e}",
-                        exc_info=True,
-                    )
-                return None
 
-            tasks = [
-                fetch_single_video_insights(video_id)
-                for video_id in video_details_map.keys()
-            ]
-            results = await asyncio.gather(*tasks)
+                            # If we got a page access token, reinitialize the API
+                            if "access_token" in page_info:
+                                page_token = page_info["access_token"]
+                                logger.info(
+                                    f"Successfully obtained page access token for page {page_id}"
+                                )
 
-            reel_insights_data = [res for res in results if res is not None]
-            logger.info(
-                f"Successfully fetched insights for {len(reel_insights_data)} reels/videos."
-            )
+                                # Reinitialize API with page token
+                                api = await self._get_api_instance(page_token)
+                                page = Page(page_id, api=api)
 
-            # 5. Caching
-            await self.cache_service.set(
-                cache_key,
-                [item.dict() for item in reel_insights_data],
-                ttl=DEFAULT_CACHE_TTL,
-            )
-            logger.info(
-                f"Cached {len(reel_insights_data)} reel insights for key: {cache_key}"
-            )
+                                # Retry the videos request with the page token
+                                videos_cursor = await asyncio.to_thread(
+                                    page.get_videos,
+                                    fields=video_fields,
+                                    params=video_params,
+                                )
+                                all_videos = await asyncio.to_thread(
+                                    list, videos_cursor
+                                )
+                            else:
+                                logger.error(
+                                    f"Could not obtain page access token for page {page_id}"
+                                )
+                                return []
+                        except FacebookRequestError as token_error:
+                            logger.error(
+                                f"Failed to get page access token for page {page_id}: {token_error}"
+                            )
+                            return []
+                    else:
+                        # Not a token type error, re-raise
+                        raise
 
-        except FacebookRequestError as e:
-            logger.error(
-                f"Facebook API error fetching videos or insights for page {page_id}: {e}",
-                exc_info=True,
-            )
-            # Use correct handler method name
-            self.error_handler.handle_error(
-                e, f"fetching videos/insights for page {page_id}"
-            )
-            return []
+                logger.info(
+                    f"Found {len(all_videos)} videos/reels for page {page_id} in the specified date range."
+                )
+
+                # Filter for reels if possible
+                reel_videos = all_videos
+                logger.info(f"Processing {len(reel_videos)} potential reels.")
+
+                # 4. Fetch Insights for Each Reel/Video
+                video_details_map = {
+                    video[AdVideo.Field.id]: video for video in reel_videos
+                }
+
+                async def fetch_single_video_insights(video_id):
+                    try:
+                        # Ensure the URL has a proper scheme
+                        if not video_id.startswith(("http://", "https://")):
+                            # Just use the ID directly instead of as a URL
+                            video = AdVideo(video_id, api=api)
+                        else:
+                            video = AdVideo(video_id, api=api)
+
+                        # Video insights expect metrics via the 'fields' argument
+                        insight_params = {
+                            "period": "lifetime",  # Lifetime is common for video insights
+                        }
+
+                        # Use the SDK's get_insights method directly
+                        insights_result = await asyncio.to_thread(
+                            video.get_insights,
+                            fields=metrics,
+                            params=insight_params,
+                        )
+
+                        if insights_result:
+                            # Process insights
+                            processed_insights = []
+                            for insight in insights_result:
+                                insight_data = insight.export_data()
+                                metrics_dict = {}
+                                # Check 'values' structure first (often used for posts)
+                                if "values" in insight_data and isinstance(
+                                    insight_data["values"], list
+                                ):
+                                    for value_entry in insight_data["values"]:
+                                        metric_name = value_entry.get(
+                                            "name"
+                                        )  # Video insights tend to use 'name'
+                                        if metric_name in metrics:
+                                            metrics_dict[metric_name] = (
+                                                value_entry.get("value", 0)
+                                            )
+                                # Fallback: Check if metrics are direct keys
+                                else:
+                                    for metric_name in metrics:
+                                        if metric_name in insight_data:
+                                            metrics_dict[metric_name] = (
+                                                insight_data[metric_name]
+                                            )
+
+                                # If we got any metrics, add to list for this video
+                                if metrics_dict:
+                                    processed_insights.append(metrics_dict)
+
+                            # Aggregate metrics if multiple insights returned per video
+                            final_metrics_dict = (
+                                processed_insights[0]
+                                if processed_insights
+                                else {}
+                            )
+
+                            video_detail = video_details_map.get(video_id)
+                            if video_detail:
+                                return VideoInsight(
+                                    video_id=video_detail[AdVideo.Field.id],
+                                    title=video_detail.get(AdVideo.Field.title),
+                                    description=video_detail.get(
+                                        AdVideo.Field.description
+                                    ),
+                                    created_time=video_detail[
+                                        AdVideo.Field.created_time
+                                    ],
+                                    metrics=final_metrics_dict,
+                                )
+                    except FacebookRequestError as e:
+                        logger.warning(
+                            f"FB API error fetching insights for video {video_id}: {e.api_error_message()}"
+                        )
+                        self.error_handler.handle_error(
+                            e,
+                            f"fetching insights for video {video_id}",
+                        )
+                    except Exception as e:
+                        logger.error(
+                            f"Unexpected error fetching insights for video {video_id}: {e}",
+                            exc_info=True,
+                        )
+                    return None
+
+                tasks = [
+                    fetch_single_video_insights(video_id)
+                    for video_id in video_details_map.keys()
+                ]
+                results = await asyncio.gather(*tasks)
+
+                reel_insights_data = [res for res in results if res is not None]
+                logger.info(
+                    f"Successfully fetched insights for {len(reel_insights_data)} reels/videos."
+                )
+
+                # 5. Caching
+                await self.cache_service.set(
+                    cache_key,
+                    [item.dict() for item in reel_insights_data],
+                    ttl=DEFAULT_CACHE_TTL,
+                )
+                logger.info(
+                    f"Cached {len(reel_insights_data)} reel insights for key: {cache_key}"
+                )
+            except FacebookRequestError as e:
+                logger.error(
+                    f"Facebook API error fetching videos or insights for page {page_id}: {e}",
+                    exc_info=True,
+                )
+                # Use correct handler method name
+                self.error_handler.handle_error(
+                    e, f"fetching videos/insights for page {page_id}"
+                )
+                return []
         except Exception as e:
             logger.error(
                 f"Unexpected error fetching reel insights for page {page_id}: {e}",
@@ -1144,6 +1265,87 @@ class FacebookAdsService:
         return page_ids
 
     # --- End helper method ---
+
+    async def get_business_reel_insights(
+        self,
+        business_id: str,
+        metrics: List[str],
+        date_range: DateRange,
+        access_token: Optional[str] = None,
+    ) -> List[VideoInsight]:
+        """
+        Fetch reel/video insights for all Pages associated with a Business Manager.
+
+        Args:
+            business_id: The Facebook Business Manager ID
+            metrics: List of metrics to retrieve for each reel
+            date_range: Date range for fetching reels (based on creation time)
+            access_token: Optional Facebook access token with business_management permission
+
+        Returns:
+            List of VideoInsight objects with insights for all reels across all pages
+        """
+        # Use provided token or default token if available
+        token = access_token or self.default_token
+        if not token:
+            logger.error("No access token provided for business reel insights")
+            return []
+
+        try:
+            # 1. Initialize API with the token
+            api = await self._get_api_instance(token)
+
+            # 2. Fetch Business Pages using helper
+            page_ids = await self._get_business_page_ids(business_id, api)
+            if not page_ids:
+                return []  # Return early if no pages found/accessible
+
+            # 3. Fetch Insights Concurrently for Reels Only
+            logger.info(f"Creating tasks for {len(page_ids)} pages (reels).")
+            tasks = []
+            for page_id in page_ids:
+                if metrics:  # Only schedule if metrics are requested
+                    task = asyncio.create_task(
+                        self.get_reel_insights(
+                            page_id=page_id,
+                            metrics=metrics,
+                            date_range=date_range,
+                            access_token=token,  # Pass the token for each page call
+                        )
+                    )
+                    tasks.append(task)
+
+            if not tasks:
+                logger.info("No reel insight tasks to run.")
+                return []
+
+            logger.info(
+                f"Running {len(tasks)} reel insight tasks concurrently."
+            )
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+
+            # 4. Process Results
+            all_insights = []
+            for i, result in enumerate(results):
+                page_id = page_ids[i]
+                if isinstance(result, Exception):
+                    logger.error(
+                        f"Error fetching reel insights for page {page_id}: {result}"
+                    )
+                else:
+                    # Add the insights for this page to the combined results
+                    all_insights.extend(result)
+
+            logger.info(
+                f"Retrieved {len(all_insights)} reel insights across {len(page_ids)} pages."
+            )
+            return all_insights
+
+        except Exception as e:
+            logger.error(
+                f"Unexpected error fetching business reel insights for {business_id}: {str(e)}"
+            )
+            raise
 
 
 # Example usage (for testing or demonstration)
